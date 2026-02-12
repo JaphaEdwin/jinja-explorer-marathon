@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+:root { --ff-display: 'DM Serif Display', Georgia, serif; --ff-body: 'Outfit', sans-serif; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--ff-body); background: #FAF7F2; color: #1A1A1A; -webkit-font-smoothing: antialiased; }
+::selection { background: #C8963E33; }
+input:focus, textarea:focus, select:focus { border-color: #C8963E !important; box-shadow: 0 0 0 3px #C8963E18 !important; }
+button { font-family: var(--ff-body); }
+button:hover { opacity: 0.92; }
+.jem-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.jem-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.jem-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.jem-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+.jem-footer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+.jem-footer-heading { font-weight: 700; margin-bottom: 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #C8963E; }
+.jem-desktop-nav { display: flex; gap: 2px; align-items: center; }
+.jem-mobile-toggle { display: none; }
+.jem-mobile-register { display: none; }
+@media (max-width: 1024px) {
+.jem-grid-5 { grid-template-columns: repeat(3, 1fr); }
+.jem-grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+.jem-grid-2, .jem-grid-3 { grid-template-columns: 1fr; }
+.jem-grid-4 { grid-template-columns: repeat(2, 1fr); }
+.jem-grid-5 { grid-template-columns: repeat(2, 1fr); }
+.jem-footer-grid { grid-template-columns: 1fr; }
+.jem-desktop-nav { display: none !important; }
+.jem-mobile-toggle { display: block !important; }
+.jem-header-name { display: none !important; }
+.jem-mobile-register { display: flex !important; }
+}
+@media (max-width: 480px) {
+.jem-grid-4, .jem-grid-5 { grid-template-columns: 1fr; }
+}
+@media (min-width: 769px) {
+.jem-mobile-toggle { display: none !important; }
+.jem-mobile-register { display: none !important; }
+}

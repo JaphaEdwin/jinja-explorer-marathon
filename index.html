@@ -1,23 +1,164 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Jinja Explorer Marathon</title>
-  <meta name="description" content="Jinja Explorer Marathon — Run the Royal Gateway. Explore the Adventure City." />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jinja Explorer Marathon — Run the Royal Gateway</title>
+  <meta name="description" content="A destination marathon in Jinja, Uganda. 5K, 10K, Half & Full Marathon. Explore Busoga culture, Nile adventures & world-class race operations.">
+  <meta property="og:title" content="Jinja Explorer Marathon — Run the Royal Gateway">
+  <meta property="og:description" content="A destination marathon in Jinja, Uganda combining world-class race operations with tourism and culture.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/og-image.jpg">
+  <link rel="canonical" href="https://jinjaexplorermarathon.com">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <!-- Structured Data: Event -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SportsEvent",
+    "name": "Jinja Explorer Marathon",
+    "description": "A destination marathon hosted in Jinja, Uganda — gateway of Busoga and Uganda's adventure city.",
+    "startDate": "2026-11-01",
+    "endDate": "2026-11-01",
+    "eventStatus": "https://schema.org/EventScheduled",
+    "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+    "location": {
+      "@type": "Place",
+      "name": "Jinja City, Uganda",
+      "address": { "@type": "PostalAddress", "addressLocality": "Jinja", "addressCountry": "UG" }
+    },
+    "organizer": {
+      "@type": "Organization",
+      "name": "Jinja Explorer Marathon"
+    }
+  }
+  </script>
 </head>
 <body>
-  <div id="root"></div>
 
-  <!-- React (UMD) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- ════════════════════════════════════════════
+     HEADER
+     ════════════════════════════════════════════ -->
+<header class="header" id="header">
+  <div class="header__inner">
+    <a href="#/" class="header__logo" onclick="navigate('/')">
+      <span class="header__logo-icon">J</span>
+      <span>JEM</span>
+    </a>
+    <nav class="header__nav" id="desktopNav">
+      <a href="#/about" class="header__link" data-route="/about">About</a>
+      <a href="#/register" class="header__link" data-route="/register">Register</a>
+      <a href="#/course" class="header__link" data-route="/course">Course</a>
+      <a href="#/race-week" class="header__link" data-route="/race-week">Race Week</a>
+      <a href="#/explore-jinja" class="header__link" data-route="/explore-jinja">Explore Jinja</a>
+      <a href="#/culture" class="header__link" data-route="/culture">Culture</a>
+      <a href="#/results" class="header__link" data-route="/results">Results</a>
+      <a href="#/sponsors" class="header__link" data-route="/sponsors">Sponsors</a>
+      <a href="#/contact" class="header__link" data-route="/contact">Contact</a>
+    </nav>
+    <a href="#/register" class="btn btn--gold btn--sm header__cta" onclick="trackEvent('register_click','header')">Register Now</a>
+    <button class="header__menu-btn" onclick="toggleMobileNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
 
-  <!-- Babel (so GitHub Pages can run JSX without a build step) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Mobile Nav -->
+<div class="mobile-nav" id="mobileNav">
+  <div class="mobile-nav__overlay" onclick="toggleMobileNav()"></div>
+  <div class="mobile-nav__panel">
+    <button class="mobile-nav__close" onclick="toggleMobileNav()">✕</button>
+    <a href="#/" class="mobile-nav__link" data-route="/" onclick="toggleMobileNav()">Home</a>
+    <a href="#/about" class="mobile-nav__link" data-route="/about" onclick="toggleMobileNav()">About</a>
+    <a href="#/register" class="mobile-nav__link" data-route="/register" onclick="toggleMobileNav()">Register</a>
+    <a href="#/course" class="mobile-nav__link" data-route="/course" onclick="toggleMobileNav()">Course</a>
+    <a href="#/race-week" class="mobile-nav__link" data-route="/race-week" onclick="toggleMobileNav()">Race Week</a>
+    <a href="#/explore-jinja" class="mobile-nav__link" data-route="/explore-jinja" onclick="toggleMobileNav()">Explore Jinja</a>
+    <a href="#/culture" class="mobile-nav__link" data-route="/culture" onclick="toggleMobileNav()">Culture</a>
+    <a href="#/results" class="mobile-nav__link" data-route="/results" onclick="toggleMobileNav()">Results</a>
+    <a href="#/sponsors" class="mobile-nav__link" data-route="/sponsors" onclick="toggleMobileNav()">Sponsors</a>
+    <a href="#/media" class="mobile-nav__link" data-route="/media" onclick="toggleMobileNav()">Media</a>
+    <a href="#/contact" class="mobile-nav__link" data-route="/contact" onclick="toggleMobileNav()">Contact</a>
+    <div style="margin-top:24px">
+      <a href="#/register" class="btn btn--gold" style="width:100%" onclick="toggleMobileNav();trackEvent('register_click','mobile_nav')">Register Now</a>
+    </div>
+  </div>
+</div>
 
-  <!-- Your app -->
-  <script type="text/babel" data-presets="react" src="app.js"></script>
+<!-- Mobile Sticky Register Bar -->
+<div class="mobile-register-bar" id="mobileRegBar">
+  <div class="mobile-register-bar__info">
+    <strong>Nov 2026 · Jinja, Uganda</strong>
+    5K · 10K · 21K · 42K
+  </div>
+  <a href="#/register" class="btn btn--gold btn--sm" onclick="trackEvent('register_click','sticky_bar')">Register</a>
+</div>
+
+<!-- ════════════════════════════════════════════
+     PAGE CONTAINER
+     ════════════════════════════════════════════ -->
+<div id="app" class="page-content"></div>
+
+<!-- ════════════════════════════════════════════
+     FOOTER
+     ════════════════════════════════════════════ -->
+<footer class="footer" id="footer">
+  <div class="container">
+    <div class="footer__grid">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-hover));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.2rem;color:var(--navy-deep)">J</span>
+          <span style="color:var(--white);font-weight:700">Jinja Explorer Marathon</span>
+        </div>
+        <p class="footer__brand-desc">A destination marathon hosted in Jinja — gateway of Busoga and Uganda's adventure city. Combining world-class race operations with tourism and culture.</p>
+        <div class="footer__socials">
+          <a href="https://facebook.com/jinjaexplorermarathon" target="_blank" class="footer__social" title="Facebook">f</a>
+          <a href="https://instagram.com/jinjaexplorermarathon" target="_blank" class="footer__social" title="Instagram">ig</a>
+          <a href="https://x.com/JinjaExplorer" target="_blank" class="footer__social" title="X/Twitter">𝕏</a>
+          <a href="https://youtube.com/@jinjaexplorermarathon" target="_blank" class="footer__social" title="YouTube">▶</a>
+          <a href="https://strava.com/clubs/jinjaexplorer" target="_blank" class="footer__social" title="Strava">S</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer__heading">Race</div>
+        <a href="#/register" class="footer__link">Register</a>
+        <a href="#/course" class="footer__link">Course & Route</a>
+        <a href="#/race-week" class="footer__link">Race Week & Expo</a>
+        <a href="#/results" class="footer__link">Results</a>
+      </div>
+      <div>
+        <div class="footer__heading">Explore</div>
+        <a href="#/explore-jinja" class="footer__link">Tourism & Itineraries</a>
+        <a href="#/culture" class="footer__link">Busoga Culture</a>
+        <a href="#/about" class="footer__link">About JEM</a>
+        <a href="#/media" class="footer__link">Media Centre</a>
+      </div>
+      <div>
+        <div class="footer__heading">Newsletter</div>
+        <p style="font-size:0.85rem;margin-bottom:8px;color:rgba(255,255,255,0.5)">Get race updates and Jinja travel tips.</p>
+        <div class="footer__newsletter" id="footerNewsletter">
+          <input type="email" placeholder="Your email" id="footerEmail" required>
+          <button class="btn btn--gold btn--sm" onclick="submitFooterNewsletter()">Join</button>
+        </div>
+        <div style="margin-top:16px">
+          <div class="footer__heading">Contact</div>
+          <a href="mailto:info@jinjaexplorermarathon.com" class="footer__link">info@jinjaexplorermarathon.com</a>
+          <a href="tel:+256700000000" class="footer__link">+256 700 000 000</a>
+          <a href="https://wa.me/256700000000" target="_blank" class="footer__link" style="color:#25D366">💬 WhatsApp</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 Jinja Explorer Marathon. All rights reserved.</span>
+      <span>
+        <a href="#/contact" style="color:rgba(255,255,255,0.5);margin-right:16px">Privacy Policy</a>
+        <a href="#/contact" style="color:rgba(255,255,255,0.5)">Terms & Conditions</a>
+      </span>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
 </body>
 </html>

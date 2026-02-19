@@ -1,10 +1,50 @@
 /* ═══════════════════════════════════════════════════════════
-   JEM APP — Jinja Explorer Marathon SPA
-   Hash-based routing · 11 pages · Forms · Soundboard
+   JEM APP v2 — Jinja Explorer Marathon SPA
+   Hash routing · 11 pages + Admin · Tickets · Email sim
    ═══════════════════════════════════════════════════════════ */
 
 const S = CONFIG.site;
 const app = document.getElementById('app');
+
+/* ─── ADMIN CREDENTIALS ─── */
+const ADMIN_CREDS = {
+  email: "admin@jinjaexplorermarathon.com",
+  password: "JEM2026"
+};
+let isAdminLoggedIn = false;
+
+/* ─── LOCAL DATA STORE (shared between public + admin) ─── */
+const STORE_KEYS = { regs: 'jem-registrations', subs: 'jem-submissions' };
+
+function loadStore(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; }
+}
+function saveStore(key, data) {
+  try { localStorage.setItem(key, JSON.stringify(data)); } catch { }
+}
+
+// Seed sample data on first load
+function seedSampleData() {
+  if (localStorage.getItem('jem-seeded')) return;
+  const sampleRegs = [
+    { id: "JEM-A1B2C", firstName: "Sarah", lastName: "Namukasa", email: "sarah@example.com", phone: "+256 701 234 567", category: "Full Marathon 42K", tshirt: "M", gender: "Female", nationality: "Uganda", status: "Paid", date: "2026-02-15T10:30:00", payment: "MTN MoMo" },
+    { id: "JEM-D3E4F", firstName: "James", lastName: "Okello", email: "james.o@example.com", phone: "+256 772 345 678", category: "Half Marathon 21K", tshirt: "L", gender: "Male", nationality: "Uganda", status: "Paid", date: "2026-02-16T14:20:00", payment: "Airtel Money" },
+    { id: "JEM-G5H6I", firstName: "Emma", lastName: "Van der Berg", email: "emma.vdb@example.com", phone: "+31 612 345 678", category: "Full Marathon 42K", tshirt: "S", gender: "Female", nationality: "Netherlands", status: "Pending", date: "2026-02-18T09:00:00", payment: "Card" },
+    { id: "JEM-J7K8L", firstName: "David", lastName: "Kiplangat", email: "david.k@example.com", phone: "+254 712 345 678", category: "Full Marathon 42K", tshirt: "M", gender: "Male", nationality: "Kenya", status: "Paid", date: "2026-02-18T11:15:00", payment: "Card" },
+    { id: "JEM-M9N0P", firstName: "Grace", lastName: "Auma", email: "grace.a@example.com", phone: "+256 780 456 789", category: "5K Fun Run", tshirt: "S", gender: "Female", nationality: "Uganda", status: "Paid", date: "2026-02-19T08:45:00", payment: "MTN MoMo" },
+    { id: "JEM-Q1R2S", firstName: "Michael", lastName: "Johnson", email: "mj.runner@example.com", phone: "+1 555 234 5678", category: "Half Marathon 21K", tshirt: "XL", gender: "Male", nationality: "USA", status: "Failed", date: "2026-02-19T16:30:00", payment: "Card" },
+  ];
+  const sampleSubs = [
+    { type: "sponsor", name: "MTN Uganda", org: "MTN", email: "sponsor@mtn.co.ug", phone: "+256 800 100 100", budget: "Gold Sponsor", message: "Interested in Gold tier brand activation.", date: "2026-02-14T10:00:00", status: "New" },
+    { type: "contact", name: "Rose Nabwire", email: "rose@media.co.ug", subject: "Media & press", message: "We'd like to cover the marathon for NTV Uganda.", date: "2026-02-17T13:00:00", status: "Replied" },
+    { type: "sponsor", name: "Uganda Breweries", org: "UBL", email: "events@ubl.co.ug", phone: "+256 700 222 333", budget: "Silver Sponsor", message: "Looking at hydration station branding.", date: "2026-02-18T09:30:00", status: "New" },
+    { type: "contact", name: "Patrick Otieno", email: "patrick@gmail.com", subject: "Registration query", message: "Can I register a team of 10 runners? Any group discount?", date: "2026-02-19T07:15:00", status: "New" },
+  ];
+  saveStore(STORE_KEYS.regs, sampleRegs);
+  saveStore(STORE_KEYS.subs, sampleSubs);
+  localStorage.setItem('jem-seeded', 'true');
+}
+seedSampleData();
 
 /* ─── ANALYTICS HOOKS ─── */
 function trackEvent(event, detail) {
@@ -26,6 +66,214 @@ function showToast(msg, type = 'success') {
 /* ─── MOBILE NAV ─── */
 function toggleMobileNav() {
   document.getElementById('mobileNav').classList.toggle('open');
+}
+
+/* ─── ADMIN LOGIN ─── */
+function openAdminLogin() {
+  if (isAdminLoggedIn) { navigate('/admin'); return; }
+  document.getElementById('adminLoginModal').classList.add('open');
+  document.getElementById('adminEmail').focus();
+  document.getElementById('loginError').style.display = 'none';
+}
+function closeAdminLogin() {
+  document.getElementById('adminLoginModal').classList.remove('open');
+}
+function attemptAdminLogin() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const pw = document.getElementById('adminPassword').value;
+  const err = document.getElementById('loginError');
+  if (email === ADMIN_CREDS.email && pw === ADMIN_CREDS.password) {
+    isAdminLoggedIn = true;
+    closeAdminLogin();
+    navigate('/admin');
+    showToast('Welcome to JEM Admin 🔐');
+  } else {
+    err.textContent = 'Invalid credentials. Please try again.';
+    err.style.display = 'block';
+  }
+}
+function adminLogout() {
+  isAdminLoggedIn = false;
+  navigate('/');
+  showToast('Logged out of admin panel');
+}
+
+/* ─── EMAIL SIMULATION ─── */
+function simulateEmail(recipientEmail, regData) {
+  const statusEl = document.getElementById('emailStatus');
+  if (!statusEl) return;
+
+  // Phase 1: Sending
+  statusEl.innerHTML = `
+    <div class="email-status">
+      <div class="email-status__icon email-status__icon--sending">📤</div>
+      <div>
+        <div style="font-weight:600;font-size:0.88rem;color:var(--navy)">Sending confirmation email...</div>
+        <div style="font-size:0.78rem;color:var(--text-light)">To: ${recipientEmail}</div>
+      </div>
+    </div>`;
+
+  // Phase 2: Delivered (after 1.5s)
+  setTimeout(() => {
+    statusEl.innerHTML = `
+      <div class="email-status" style="border-color:rgba(52,168,83,0.2)">
+        <div class="email-status__icon email-status__icon--sent">✅</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:0.88rem;color:var(--success)">Confirmation email delivered</div>
+          <div style="font-size:0.78rem;color:var(--text-light)">To: ${recipientEmail} · ${new Date().toLocaleTimeString()}</div>
+          <div style="font-size:0.75rem;color:var(--text-light);margin-top:4px">Contains: Registration ID, payment instructions, race-day info</div>
+        </div>
+        <button class="btn btn--outline btn--sm" style="flex-shrink:0" onclick="previewEmail('${regData.id}')">Preview</button>
+      </div>`;
+
+    // Also add to admin email log
+    const logs = loadStore('jem-email-log');
+    logs.push({
+      to: recipientEmail,
+      subject: 'JEM Registration Confirmation — ' + regData.id,
+      status: 'delivered',
+      date: new Date().toISOString(),
+      regId: regData.id
+    });
+    saveStore('jem-email-log', logs);
+  }, 1800);
+}
+
+function previewEmail(regId) {
+  const regs = loadStore(STORE_KEYS.regs);
+  const reg = regs.find(r => r.id === regId);
+  if (!reg) return;
+  const fee = CONFIG.fees.find(f => f.category === reg.category);
+
+  const win = window.open('', '_blank', 'width=600,height=700');
+  win.document.write(`
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>JEM Confirmation Email Preview</title>
+    <style>body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:24px;background:#f5f5f5}
+    .email{max-width:520px;margin:0 auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+    .hdr{background:linear-gradient(135deg,#0D1520,#1C2D4F);padding:28px;color:white;text-align:center}
+    .hdr h1{font-size:18px;margin:0 0 4px} .hdr p{font-size:12px;opacity:0.7;margin:0}
+    .bd{padding:24px} .bd h2{font-size:16px;color:#1C2D4F;margin:0 0 16px}
+    .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee;font-size:14px}
+    .row:last-child{border:none} .lab{color:#888} .val{font-weight:600;color:#1A1A1A}
+    .cta{display:block;text-align:center;background:linear-gradient(135deg,#C8963E,#B5842F);color:#0D1520;
+    padding:14px;border-radius:8px;font-weight:700;text-decoration:none;margin:16px 0;font-size:14px}
+    .ft{background:#f9f7f3;padding:16px 24px;font-size:12px;color:#888;text-align:center}
+    </style></head><body>
+    <div class="email">
+      <div class="hdr"><h1>Jinja Explorer Marathon</h1><p>Registration Confirmation</p></div>
+      <div class="bd">
+        <h2>🎉 You're registered, ${reg.firstName}!</h2>
+        <div class="row"><span class="lab">Registration ID</span><span class="val">${reg.id}</span></div>
+        <div class="row"><span class="lab">Category</span><span class="val">${reg.category}</span></div>
+        <div class="row"><span class="lab">Fee (Early Bird)</span><span class="val">${fee ? fee.early : '—'}</span></div>
+        <div class="row"><span class="lab">T-Shirt Size</span><span class="val">${reg.tshirt}</span></div>
+        <div class="row"><span class="lab">Status</span><span class="val">${reg.status === 'Paid' ? '✅ Paid' : '⏳ Pending Payment'}</span></div>
+        <a class="cta" href="#">${reg.status === 'Paid' ? 'View Your Ticket' : 'Complete Payment Now'}</a>
+        <h2 style="margin-top:20px">📋 Next Steps</h2>
+        <p style="font-size:13px;color:#444;line-height:1.6">${reg.status === 'Paid'
+          ? 'Your entry is confirmed! Collect your race kit at the Expo on Thursday or Friday. Bring this email and a photo ID.'
+          : 'Please complete payment within 48 hours to secure your place. MTN MoMo: Send to 0700 000 000, Reference: ' + reg.id}</p>
+      </div>
+      <div class="ft">Jinja Explorer Marathon · ${S.date} · ${S.location}<br>📧 ${S.email} · 📞 ${S.phone}</div>
+    </div></body></html>`);
+}
+
+/* ─── DIGITAL TICKET ─── */
+function generateTicketId() {
+  return 'JEM-' + Date.now().toString(36).toUpperCase().slice(-5);
+}
+
+function showDigitalTicket(regData) {
+  const modal = document.getElementById('ticketModal');
+  const content = document.getElementById('ticketContent');
+  const fee = CONFIG.fees.find(f => f.category === regData.category);
+  const startTime = CONFIG.startTimes.find(t => t.event.includes(regData.category.split(' ')[0]) || regData.category.includes(t.event.split(' ')[0]));
+  const isPaid = regData.status === 'Paid';
+
+  content.innerHTML = `
+    <div class="ticket" id="ticketPrintArea">
+      <div class="ticket__header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;opacity:0.6;margin-bottom:6px">Race Entry Ticket</div>
+            <div style="font-family:'DM Serif Display',Georgia,serif;font-size:1.5rem;margin-bottom:4px">Jinja Explorer Marathon</div>
+            <div style="font-size:0.85rem;opacity:0.7">${S.date} · ${S.location}</div>
+          </div>
+          <div class="ticket__qr">
+            <div style="font-size:1.8rem">📱</div>
+            <span>QR Code</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;align-items:center">
+          <span class="ticket__status ${isPaid ? 'ticket__status--paid' : 'ticket__status--pending'}">
+            ${isPaid ? '✓ PAID' : '⏳ PENDING PAYMENT'}
+          </span>
+          <span style="font-family:monospace;font-size:0.8rem;opacity:0.7">${regData.id}</span>
+        </div>
+      </div>
+
+      <div class="ticket__body">
+        <div class="ticket__row">
+          <div><div class="ticket__field-label">Runner Name</div><div class="ticket__field-value">${regData.firstName} ${regData.lastName}</div></div>
+          <div><div class="ticket__field-label">Category</div><div class="ticket__field-value" style="color:var(--gold)">${regData.category}</div></div>
+        </div>
+        <div class="ticket__row">
+          <div><div class="ticket__field-label">Email</div><div class="ticket__field-value" style="font-size:0.85rem">${regData.email}</div></div>
+          <div><div class="ticket__field-label">Phone</div><div class="ticket__field-value">${regData.phone}</div></div>
+        </div>
+        <div class="ticket__row">
+          <div><div class="ticket__field-label">T-Shirt Size</div><div class="ticket__field-value">${regData.tshirt}</div></div>
+          <div><div class="ticket__field-label">Entry Fee</div><div class="ticket__field-value">${fee ? fee.early + ' (Early Bird)' : '—'}</div></div>
+        </div>
+        ${startTime ? `
+        <div class="ticket__row">
+          <div><div class="ticket__field-label">Gun Time</div><div class="ticket__field-value">${startTime.time}</div></div>
+          <div><div class="ticket__field-label">Assembly</div><div class="ticket__field-value">${startTime.assembly}</div></div>
+        </div>` : ''}
+
+        <hr class="ticket__divider">
+
+        <div style="font-size:0.78rem;color:var(--text-light);line-height:1.6">
+          <strong style="color:var(--navy)">📋 Important:</strong> Present this ticket and a photo ID at the Expo to collect your race kit. Bib collection is Thursday & Friday only. No race-day bib collection.
+        </div>
+
+        ${!isPaid ? `
+        <div style="margin-top:14px;padding:14px;background:rgba(251,188,4,0.08);border:1px solid rgba(251,188,4,0.2);border-radius:8px;font-size:0.82rem;color:#8B6B00">
+          <strong>⏳ Payment Required</strong><br>
+          MTN MoMo: Send <strong>${fee ? fee.early : 'fee'}</strong> to <strong>0700 000 000</strong><br>
+          Reference: <strong>${regData.id}</strong><br>
+          Payment must be completed within 48 hours.
+        </div>` : ''}
+      </div>
+
+      <div class="ticket__footer">
+        <button class="btn btn--gold btn--sm" onclick="printTicket()">🖨️ Print Ticket</button>
+        <button class="btn btn--outline btn--sm" onclick="downloadTicket()">📥 Download</button>
+        <button class="btn btn--outline btn--sm" onclick="closeTicketModal()">Close</button>
+      </div>
+    </div>`;
+
+  modal.classList.add('open');
+}
+
+function closeTicketModal() {
+  document.getElementById('ticketModal').classList.remove('open');
+}
+
+function printTicket() {
+  const printContent = document.getElementById('ticketPrintArea').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>JEM Ticket</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>@media print { .ticket__footer { display: none !important; } body { margin: 0; } }</style>
+    </head><body style="background:#fff;padding:20px">
+    <div style="max-width:500px;margin:0 auto;border:1px solid #ddd;border-radius:16px;overflow:hidden">${printContent}</div>
+    <script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+}
+
+function downloadTicket() {
+  showToast('Ticket download ready — use Print > Save as PDF');
+  printTicket();
 }
 
 /* ─── FORM HELPERS ─── */
@@ -1270,22 +1518,288 @@ function renderContact() {
   `;
 }
 
+/* ─── ADMIN DASHBOARD PAGE ─── */
+let adminTab = 'registrations';
+
 function renderAdmin() {
+  if (!isAdminLoggedIn) {
+    return `<section class="section" style="margin-top:var(--header-h);text-align:center;padding:120px 20px">
+      <h2 class="t-display t-h2 mb-16">Access Denied</h2>
+      <p class="text-mid mb-24">Please log in via the Admin link in the footer.</p>
+      <button class="btn btn--gold" onclick="openAdminLogin()">Sign In</button>
+    </section>`;
+  }
+
+  const regs = loadStore(STORE_KEYS.regs);
+  const subs = loadStore(STORE_KEYS.subs);
+  const emailLog = loadStore('jem-email-log');
+  const paid = regs.filter(r => r.status === 'Paid').length;
+  const pending = regs.filter(r => r.status === 'Pending').length;
+  const failed = regs.filter(r => r.status === 'Failed').length;
+  const newSubs = subs.filter(s => s.status === 'New').length;
+
+  // Category breakdown
+  const cats = {};
+  regs.forEach(r => { cats[r.category] = (cats[r.category] || 0) + 1; });
+
   return `
-    <section class="section" style="padding-top:24px">
+    <!-- Admin Topbar -->
+    <div class="admin-topbar">
+      <div class="admin-topbar__title">
+        <span style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-hover));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1rem;color:var(--navy-deep)">J</span>
+        JEM Admin Dashboard
+      </div>
+      <div class="admin-topbar__actions">
+        <button class="btn btn--outline-white btn--sm" onclick="adminExportRegsCSV()">📥 Export Registrations CSV</button>
+        <button class="btn btn--outline-white btn--sm" onclick="adminExportAllJSON()">📦 Export All JSON</button>
+        <button class="btn btn--outline-white btn--sm" onclick="adminLogout()" style="border-color:rgba(234,67,53,0.3);color:#ff6b6b">⏻ Logout</button>
+      </div>
+    </div>
+
+    <section class="section" style="padding-top:32px">
       <div class="container">
-        <div class="section-head" style="margin-bottom:12px">
-          <span class="badge badge--navy section-head__label">Admin</span>
-          <h2 class="t-display t-h1 section-head__title">JEM Admin Panel</h2>
-          <p class="section-head__desc">Manage site content, registrations and submissions (saved locally in your browser for demo/testing).</p>
-          <p class="t-xs text-light">Tip: if the panel looks tight in the frame, <a href="admin.html" target="_blank" style="color:var(--gold)">open it in a new tab →</a></p>
+        <!-- Stats -->
+        <div class="admin-stat-grid mb-32">
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(200,150,62,0.1)">🏃</div>
+            <div><div class="admin-stat__value">${regs.length}</div><div class="admin-stat__label">Total Registrations</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(52,168,83,0.1)">✓</div>
+            <div><div class="admin-stat__value" style="color:var(--success)">${paid}</div><div class="admin-stat__label">Paid</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(251,188,4,0.1)">⏳</div>
+            <div><div class="admin-stat__value" style="color:var(--warn)">${pending}</div><div class="admin-stat__label">Pending Payment</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(234,67,53,0.1)">✕</div>
+            <div><div class="admin-stat__value" style="color:var(--danger)">${failed}</div><div class="admin-stat__label">Failed</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(46,134,171,0.1)">📬</div>
+            <div><div class="admin-stat__value" style="color:var(--teal)">${newSubs}</div><div class="admin-stat__label">New Submissions</div></div>
+          </div>
+          <div class="admin-stat">
+            <div class="admin-stat__icon" style="background:rgba(200,150,62,0.06)">📧</div>
+            <div><div class="admin-stat__value">${emailLog.length}</div><div class="admin-stat__label">Emails Sent</div></div>
+          </div>
         </div>
-        <div class="card" style="overflow:hidden">
-          <iframe src="admin.html" title="JEM Admin Panel" style="width:100%;height:80vh;border:0"></iframe>
+
+        <!-- Category breakdown -->
+        ${Object.keys(cats).length > 0 ? `
+        <div style="background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius);padding:20px;margin-bottom:32px">
+          <h3 style="font-weight:700;font-size:0.9rem;margin-bottom:14px;color:var(--navy)">Registrations by Category</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+            ${Object.entries(cats).map(([cat, count]) => {
+              const pct = Math.round((count / regs.length) * 100);
+              return `<div>
+                <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:4px">
+                  <span style="font-weight:600;color:var(--text)">${cat}</span>
+                  <span style="color:var(--text-light)">${count} (${pct}%)</span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:rgba(200,150,62,0.1)">
+                  <div style="height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold-hover));width:${pct}%"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Tabs -->
+        <div class="admin-tabs">
+          <button class="admin-tab ${adminTab === 'registrations' ? 'active' : ''}" onclick="switchAdminTab('registrations')">🏃 Registrations (${regs.length})</button>
+          <button class="admin-tab ${adminTab === 'submissions' ? 'active' : ''}" onclick="switchAdminTab('submissions')">📬 Submissions (${subs.length})</button>
+          <button class="admin-tab ${adminTab === 'emails' ? 'active' : ''}" onclick="switchAdminTab('emails')">📧 Email Log (${emailLog.length})</button>
         </div>
+
+        ${adminTab === 'registrations' ? renderAdminRegistrations(regs) : ''}
+        ${adminTab === 'submissions' ? renderAdminSubmissions(subs) : ''}
+        ${adminTab === 'emails' ? renderAdminEmailLog(emailLog) : ''}
       </div>
     </section>
   `;
+}
+
+function renderAdminRegistrations(regs) {
+  const sorted = [...regs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  return `
+    <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="text" placeholder="Search name, email, ID..." id="adminRegSearch" class="form-input" style="max-width:300px;padding:8px 14px;font-size:0.85rem" oninput="filterAdminRegs()">
+      <select id="adminRegFilter" class="form-select" style="max-width:180px;padding:8px 14px;font-size:0.85rem" onchange="filterAdminRegs()">
+        <option value="All">All Statuses</option>
+        <option value="Paid">Paid</option>
+        <option value="Pending">Pending</option>
+        <option value="Failed">Failed</option>
+      </select>
+    </div>
+    <div class="admin-table-wrap">
+      <table id="adminRegsTable">
+        <thead><tr>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">ID</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Name</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Email</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Phone</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Category</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Size</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Status</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Date</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;text-align:left">Actions</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map((r, i) => `
+            <tr data-name="${r.firstName} ${r.lastName}" data-email="${r.email}" data-id="${r.id}" data-status="${r.status}" style="border-bottom:1px solid var(--border-light);background:${i % 2 === 0 ? 'var(--white)' : 'var(--cream)'}">
+              <td style="padding:10px 12px;font-family:monospace;font-size:0.75rem">${r.id}</td>
+              <td style="padding:10px 12px;font-weight:600;font-size:0.85rem;white-space:nowrap">${r.firstName} ${r.lastName}</td>
+              <td style="padding:10px 12px;font-size:0.8rem;color:var(--text-mid)">${r.email}</td>
+              <td style="padding:10px 12px;font-size:0.8rem;color:var(--text-mid)">${r.phone}</td>
+              <td style="padding:10px 12px;font-size:0.8rem;white-space:nowrap">${r.category}</td>
+              <td style="padding:10px 12px;font-size:0.85rem">${r.tshirt}</td>
+              <td style="padding:10px 12px">
+                <span class="badge badge--${r.status === 'Paid' ? 'green' : r.status === 'Pending' ? 'gold' : 'copper'}">${r.status}</span>
+              </td>
+              <td style="padding:10px 12px;font-size:0.78rem;color:var(--text-light);white-space:nowrap">${new Date(r.date).toLocaleDateString()}</td>
+              <td style="padding:10px 12px;white-space:nowrap">
+                <select onchange="updateRegStatus('${r.id}', this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-light);font-size:0.75rem;font-family:var(--font-body)">
+                  <option value="Paid" ${r.status === 'Paid' ? 'selected' : ''}>✓ Paid</option>
+                  <option value="Pending" ${r.status === 'Pending' ? 'selected' : ''}>⏳ Pending</option>
+                  <option value="Failed" ${r.status === 'Failed' ? 'selected' : ''}>✕ Failed</option>
+                </select>
+                <button class="btn btn--outline btn--sm" style="padding:4px 8px;font-size:0.7rem;margin-left:4px" onclick='showDigitalTicket(${JSON.stringify(r).replace(/'/g, "\\'")})'>🎟️</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${sorted.length === 0 ? '<p class="text-center text-light" style="padding:40px">No registrations yet.</p>' : ''}
+  `;
+}
+
+function renderAdminSubmissions(subs) {
+  const sorted = [...subs].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const typeColors = { sponsor: 'var(--gold)', contact: 'var(--teal)', pledge: 'var(--green)' };
+  return `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${sorted.map((s, i) => `
+        <div style="background:var(--white);border-radius:var(--radius);border:1px solid var(--border-light);padding:16px 18px;border-left:4px solid ${typeColors[s.type] || 'var(--accent)'}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+                <span style="font-weight:700;font-size:0.9rem">${s.name || s.email}</span>
+                <span class="badge badge--${s.type === 'sponsor' ? 'gold' : s.type === 'contact' ? 'teal' : 'green'}">${s.type}</span>
+                <span class="badge badge--${s.status === 'New' ? 'teal' : s.status === 'Replied' ? 'green' : 'navy'}">${s.status}</span>
+              </div>
+              <div style="font-size:0.78rem;color:var(--text-light)">${s.email}${s.org ? ' · ' + s.org : ''}${s.phone ? ' · ' + s.phone : ''}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:0.75rem;color:var(--text-light)">${new Date(s.date).toLocaleDateString()}</span>
+              <select onchange="updateSubStatus(${i}, this.value)" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-light);font-size:0.75rem">
+                <option value="New" ${s.status === 'New' ? 'selected' : ''}>New</option>
+                <option value="Replied" ${s.status === 'Replied' ? 'selected' : ''}>Replied</option>
+                <option value="Archived" ${s.status === 'Archived' ? 'selected' : ''}>Archived</option>
+              </select>
+            </div>
+          </div>
+          ${s.subject || s.budget || s.pledge ? `<div style="font-size:0.8rem;font-weight:600;color:var(--navy);margin-bottom:4px">${s.subject || s.budget || 'Pledge: ' + s.pledge}</div>` : ''}
+          ${s.message ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;background:var(--cream);padding:10px 14px;border-radius:8px;margin-top:4px">${s.message}</div>` : ''}
+        </div>
+      `).join('')}
+      ${sorted.length === 0 ? '<p class="text-center text-light" style="padding:40px">No submissions yet.</p>' : ''}
+    </div>
+  `;
+}
+
+function renderAdminEmailLog(log) {
+  const sorted = [...log].sort((a, b) => new Date(b.date) - new Date(a.date));
+  return `
+    <div class="admin-table-wrap">
+      <table>
+        <thead><tr>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;text-align:left">To</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;text-align:left">Subject</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;text-align:left">Status</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;text-align:left">Sent</th>
+          <th style="background:var(--navy);color:white;padding:12px;font-size:0.72rem;text-transform:uppercase;text-align:left">Preview</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map((e, i) => `
+            <tr style="border-bottom:1px solid var(--border-light);background:${i % 2 === 0 ? 'var(--white)' : 'var(--cream)'}">
+              <td style="padding:10px 12px;font-size:0.85rem">${e.to}</td>
+              <td style="padding:10px 12px;font-size:0.82rem;color:var(--text-mid)">${e.subject}</td>
+              <td style="padding:10px 12px"><span class="badge badge--green">✓ ${e.status}</span></td>
+              <td style="padding:10px 12px;font-size:0.78rem;color:var(--text-light)">${new Date(e.date).toLocaleString()}</td>
+              <td style="padding:10px 12px"><button class="btn btn--outline btn--sm" style="padding:4px 10px;font-size:0.72rem" onclick="previewEmail('${e.regId}')">👁️ View</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${sorted.length === 0 ? '<p class="text-center text-light" style="padding:40px">No emails sent yet. Register a runner to see the email flow.</p>' : ''}
+  `;
+}
+
+/* ─── ADMIN ACTIONS ─── */
+function switchAdminTab(tab) {
+  adminTab = tab;
+  renderPage();
+}
+
+function updateRegStatus(id, status) {
+  const regs = loadStore(STORE_KEYS.regs);
+  const updated = regs.map(r => r.id === id ? { ...r, status } : r);
+  saveStore(STORE_KEYS.regs, updated);
+  showToast(`${id} marked as ${status}`);
+  renderPage();
+}
+
+function updateSubStatus(idx, status) {
+  const subs = loadStore(STORE_KEYS.subs);
+  if (subs[idx]) subs[idx].status = status;
+  saveStore(STORE_KEYS.subs, subs);
+  showToast(`Marked as ${status}`);
+  renderPage();
+}
+
+function filterAdminRegs() {
+  const search = (document.getElementById('adminRegSearch') || {}).value || '';
+  const filter = (document.getElementById('adminRegFilter') || {}).value || 'All';
+  const rows = document.querySelectorAll('#adminRegsTable tbody tr');
+  rows.forEach(row => {
+    const name = row.dataset.name || '';
+    const email = row.dataset.email || '';
+    const id = row.dataset.id || '';
+    const status = row.dataset.status || '';
+    const matchSearch = !search || `${name} ${email} ${id}`.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filter === 'All' || status === filter;
+    row.style.display = matchSearch && matchStatus ? '' : 'none';
+  });
+}
+
+function adminExportRegsCSV() {
+  const regs = loadStore(STORE_KEYS.regs);
+  const headers = ["ID","First Name","Last Name","Email","Phone","Category","T-Shirt","Gender","Nationality","Status","Payment","Date"];
+  const rows = regs.map(r => [r.id, r.firstName, r.lastName, r.email, r.phone, r.category, r.tshirt, r.gender, r.nationality, r.status, r.payment, r.date]);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `jem-registrations-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast(`Exported ${regs.length} registrations as CSV`);
+}
+
+function adminExportAllJSON() {
+  const payload = {
+    config: CONFIG,
+    registrations: loadStore(STORE_KEYS.regs),
+    submissions: loadStore(STORE_KEYS.subs),
+    emailLog: loadStore('jem-email-log'),
+    exportedAt: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `jem-full-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); showToast('Full data export downloaded');
 }
 
 /* ─── PAGE ROUTER ─── */
@@ -1311,6 +1825,13 @@ function renderPage() {
   updateActiveLinks(route);
   updateMeta(route);
   window.scrollTo(0, 0);
+
+  // Toggle footer & mobile register bar for admin page
+  const isAdmin = route === '/admin';
+  const footer = document.getElementById('footer');
+  const mobileBar = document.getElementById('mobileRegBar');
+  if (footer) footer.style.display = isAdmin ? 'none' : '';
+  if (mobileBar) mobileBar.style.display = isAdmin ? 'none' : '';
 }
 
 window.addEventListener('hashchange', renderPage);
@@ -1399,43 +1920,6 @@ function selectPledge(el, type) {
 
 /* ─── FORM SUBMISSIONS ─── */
 
-// Keep submissions compatible with the standalone admin panel (admin.html)
-const ADMIN_STORAGE_KEYS = {
-  config: "jem-cms-config-v2",
-  registrations: "jem-registrations-v2",
-  submissions: "jem-submissions-v2",
-};
-
-function lsGetJSON(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function lsSetJSON(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function persistRegistration(reg) {
-  const list = lsGetJSON(ADMIN_STORAGE_KEYS.registrations, []);
-  list.unshift(reg);
-  lsSetJSON(ADMIN_STORAGE_KEYS.registrations, list);
-}
-
-function persistSubmission(sub) {
-  const list = lsGetJSON(ADMIN_STORAGE_KEYS.submissions, []);
-  list.unshift(sub);
-  lsSetJSON(ADMIN_STORAGE_KEYS.submissions, list);
-}
-
 function submitRegistration() {
   clearErrors('registrationForm');
   const firstName = document.getElementById('regFirstName').value.trim();
@@ -1444,6 +1928,8 @@ function submitRegistration() {
   const phone = document.getElementById('regPhone').value.trim();
   const category = document.getElementById('regCategory').value;
   const tshirt = document.getElementById('regTshirt').value;
+  const gender = document.getElementById('regGender') ? document.getElementById('regGender').value : '';
+  const nationality = document.getElementById('regNationality') ? document.getElementById('regNationality').value.trim() : '';
   const terms = document.getElementById('regTerms').checked;
   const honey = document.getElementById('regHoney').value;
 
@@ -1460,42 +1946,53 @@ function submitRegistration() {
 
   if (!valid) return;
 
+  // Generate registration data
+  const regData = {
+    id: generateTicketId(),
+    firstName, lastName, email, phone, category, tshirt, gender, nationality,
+    status: 'Pending',
+    date: new Date().toISOString(),
+    payment: 'Pending',
+    club: document.getElementById('regClub') ? document.getElementById('regClub').value.trim() : '',
+  };
+
+  // Save to store
+  const regs = loadStore(STORE_KEYS.regs);
+  regs.push(regData);
+  saveStore(STORE_KEYS.regs, regs);
+
   trackEvent('register_click', { category, email });
 
-  // Persist for the Admin Panel (local demo)
-  persistRegistration({
-    id: `JEM-${Date.now().toString(36).toUpperCase()}`,
-    firstName,
-    lastName,
-    email,
-    phone,
-    category,
-    tshirt,
-    gender: "",
-    nationality: "",
-    status: "Pending",
-    payment: "",
-    date: new Date().toISOString(),
-  });
-
-  // Show success
+  // Show success with ticket + email status
   document.getElementById('regFormContainer').innerHTML = `
-    <div class="form-success">
-      <div style="font-size:2.5rem;margin-bottom:12px">🎉</div>
+    <div class="form-success" style="padding:24px">
+      <div style="font-size:2.5rem;margin-bottom:10px">🎉</div>
       <h3 style="font-size:1.2rem;margin-bottom:8px;color:var(--success)">Registration Received!</h3>
-      <p style="color:var(--text-mid);font-size:0.9rem;margin-bottom:16px">Thank you, ${firstName}! Your registration for the <strong>${category}</strong> has been received.</p>
-      <p style="color:var(--text-mid);font-size:0.85rem">A confirmation email will be sent to <strong>${email}</strong> with payment instructions. Please complete payment within 48 hours to secure your place.</p>
-      <p style="color:var(--text-light);font-size:0.8rem;margin-top:16px">Registration ID: JEM-${Date.now().toString(36).toUpperCase()}</p>
+      <p style="color:var(--text-mid);font-size:0.9rem;margin-bottom:6px">Thank you, <strong>${firstName}</strong>! Your registration for the <strong>${category}</strong> has been submitted.</p>
+      <p style="color:var(--text-light);font-size:0.82rem;margin-bottom:20px">Registration ID: <strong style="font-family:monospace;color:var(--navy)">${regData.id}</strong></p>
+
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+        <button class="btn btn--gold btn--sm" onclick='showDigitalTicket(${JSON.stringify(regData)})'>🎟️ View Digital Ticket</button>
+        <button class="btn btn--outline btn--sm" onclick='showDigitalTicket(${JSON.stringify(regData)})'>📥 Download Invoice</button>
+      </div>
+
+      <div id="emailStatus"></div>
     </div>
   `;
 
-  showToast('Registration submitted successfully! 🎉');
+  // Trigger email simulation
+  setTimeout(() => simulateEmail(email, regData), 400);
+
+  showToast('Registration submitted! Check your email 🎉');
 }
 
 function submitSponsorInquiry() {
   const name = document.getElementById('spName').value.trim();
   const org = document.getElementById('spOrg').value.trim();
   const email = document.getElementById('spEmail').value.trim();
+  const phone = document.getElementById('spPhone') ? document.getElementById('spPhone').value.trim() : '';
+  const budget = document.getElementById('spBudget') ? document.getElementById('spBudget').value : '';
+  const message = document.getElementById('spMessage') ? document.getElementById('spMessage').value.trim() : '';
   const honey = document.getElementById('spHoney').value;
 
   if (honey) return;
@@ -1504,19 +2001,12 @@ function submitSponsorInquiry() {
     return;
   }
 
-  trackEvent('sponsor_inquiry_submit', { name, org, email });
+  // Save submission
+  const subs = loadStore(STORE_KEYS.subs);
+  subs.push({ type: 'sponsor', name, org, email, phone, budget, message, date: new Date().toISOString(), status: 'New' });
+  saveStore(STORE_KEYS.subs, subs);
 
-  persistSubmission({
-    type: "sponsor",
-    name,
-    org,
-    email,
-    phone: "",
-    budget: "",
-    message: "",
-    date: new Date().toISOString(),
-    status: "New",
-  });
+  trackEvent('sponsor_inquiry_submit', { name, org, email });
 
   document.getElementById('sponsorFormContainer').innerHTML = `
     <div class="form-success">
@@ -1525,13 +2015,13 @@ function submitSponsorInquiry() {
       <p style="color:var(--text-mid);font-size:0.9rem;margin-top:8px">Thank you, ${name}. We'll get back to you within 2 business days at <strong>${email}</strong>.</p>
     </div>
   `;
-
   showToast('Sponsor inquiry sent! 🤝');
 }
 
 function submitContactForm() {
   const name = document.getElementById('ctName').value.trim();
   const email = document.getElementById('ctEmail').value.trim();
+  const subject = document.getElementById('ctSubject') ? document.getElementById('ctSubject').value : '';
   const message = document.getElementById('ctMessage').value.trim();
   const honey = document.getElementById('ctHoney').value;
 
@@ -1541,17 +2031,11 @@ function submitContactForm() {
     return;
   }
 
-  trackEvent('contact_submit', { name, email });
+  const subs = loadStore(STORE_KEYS.subs);
+  subs.push({ type: 'contact', name, email, subject, message, date: new Date().toISOString(), status: 'New' });
+  saveStore(STORE_KEYS.subs, subs);
 
-  persistSubmission({
-    type: "contact",
-    name,
-    email,
-    subject: "",
-    message,
-    date: new Date().toISOString(),
-    status: "New",
-  });
+  trackEvent('contact_submit', { name, email });
 
   document.getElementById('contactFormContainer').innerHTML = `
     <div class="form-success">
@@ -1578,15 +2062,6 @@ function submitPledge() {
   }
 
   trackEvent('twegaite_pledge', { email, pledge: selectedPledge || 'general' });
-
-  persistSubmission({
-    type: "pledge",
-    name: "",
-    email,
-    pledge: selectedPledge || "general",
-    date: new Date().toISOString(),
-    status: "New",
-  });
 
   document.getElementById('twegaiteForm').innerHTML = `
     <div style="text-align:center;padding:20px">

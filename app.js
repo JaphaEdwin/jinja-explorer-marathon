@@ -1270,6 +1270,24 @@ function renderContact() {
   `;
 }
 
+function renderAdmin() {
+  return `
+    <section class="section" style="padding-top:24px">
+      <div class="container">
+        <div class="section-head" style="margin-bottom:12px">
+          <span class="badge badge--navy section-head__label">Admin</span>
+          <h2 class="t-display t-h1 section-head__title">JEM Admin Panel</h2>
+          <p class="section-head__desc">Manage site content, registrations and submissions (saved locally in your browser for demo/testing).</p>
+          <p class="t-xs text-light">Tip: if the panel looks tight in the frame, <a href="admin.html" target="_blank" style="color:var(--gold)">open it in a new tab →</a></p>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <iframe src="admin.html" title="JEM Admin Panel" style="width:100%;height:80vh;border:0"></iframe>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 /* ─── PAGE ROUTER ─── */
 const routes = {
   '/': renderHome,
@@ -1283,6 +1301,7 @@ const routes = {
   '/sponsors': renderSponsors,
   '/media': renderMedia,
   '/contact': renderContact,
+  '/admin': renderAdmin,
 };
 
 function renderPage() {
@@ -1380,6 +1399,43 @@ function selectPledge(el, type) {
 
 /* ─── FORM SUBMISSIONS ─── */
 
+// Keep submissions compatible with the standalone admin panel (admin.html)
+const ADMIN_STORAGE_KEYS = {
+  config: "jem-cms-config-v2",
+  registrations: "jem-registrations-v2",
+  submissions: "jem-submissions-v2",
+};
+
+function lsGetJSON(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function lsSetJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function persistRegistration(reg) {
+  const list = lsGetJSON(ADMIN_STORAGE_KEYS.registrations, []);
+  list.unshift(reg);
+  lsSetJSON(ADMIN_STORAGE_KEYS.registrations, list);
+}
+
+function persistSubmission(sub) {
+  const list = lsGetJSON(ADMIN_STORAGE_KEYS.submissions, []);
+  list.unshift(sub);
+  lsSetJSON(ADMIN_STORAGE_KEYS.submissions, list);
+}
+
 function submitRegistration() {
   clearErrors('registrationForm');
   const firstName = document.getElementById('regFirstName').value.trim();
@@ -1405,6 +1461,22 @@ function submitRegistration() {
   if (!valid) return;
 
   trackEvent('register_click', { category, email });
+
+  // Persist for the Admin Panel (local demo)
+  persistRegistration({
+    id: `JEM-${Date.now().toString(36).toUpperCase()}`,
+    firstName,
+    lastName,
+    email,
+    phone,
+    category,
+    tshirt,
+    gender: "",
+    nationality: "",
+    status: "Pending",
+    payment: "",
+    date: new Date().toISOString(),
+  });
 
   // Show success
   document.getElementById('regFormContainer').innerHTML = `
@@ -1434,6 +1506,18 @@ function submitSponsorInquiry() {
 
   trackEvent('sponsor_inquiry_submit', { name, org, email });
 
+  persistSubmission({
+    type: "sponsor",
+    name,
+    org,
+    email,
+    phone: "",
+    budget: "",
+    message: "",
+    date: new Date().toISOString(),
+    status: "New",
+  });
+
   document.getElementById('sponsorFormContainer').innerHTML = `
     <div class="form-success">
       <div style="font-size:2rem;margin-bottom:12px">🤝</div>
@@ -1458,6 +1542,16 @@ function submitContactForm() {
   }
 
   trackEvent('contact_submit', { name, email });
+
+  persistSubmission({
+    type: "contact",
+    name,
+    email,
+    subject: "",
+    message,
+    date: new Date().toISOString(),
+    status: "New",
+  });
 
   document.getElementById('contactFormContainer').innerHTML = `
     <div class="form-success">
@@ -1484,6 +1578,15 @@ function submitPledge() {
   }
 
   trackEvent('twegaite_pledge', { email, pledge: selectedPledge || 'general' });
+
+  persistSubmission({
+    type: "pledge",
+    name: "",
+    email,
+    pledge: selectedPledge || "general",
+    date: new Date().toISOString(),
+    status: "New",
+  });
 
   document.getElementById('twegaiteForm').innerHTML = `
     <div style="text-align:center;padding:20px">

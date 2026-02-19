@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JEM Admin Panel</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    /* Keep page clean while React loads */
+    html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+    #root { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React + Babel (CDN) for GitHub Pages static hosting -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script>
+    // Async storage adapter expected by the JSX admin app.
+    // Uses localStorage under the hood.
+    window.storage = {
+      async get(key) {
+        try {
+          const value = localStorage.getItem(key);
+          return value === null ? null : { value };
+        } catch (e) {
+          return null;
+        }
+      },
+      async set(key, value) {
+        try {
+          localStorage.setItem(key, value);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+    };
+  </script>
+
+  <script type="text/babel" data-presets="react">
+/*
+  NOTE:
+  This file is a standalone build of jem-admin-panel2.jsx for static hosting.
+  It intentionally keeps everything client-side (localStorage) so you can demo on GitHub Pages.
+*/
+
+// React hooks from global React
+const { useState, useEffect, useCallback, useRef } = React;
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   JEM ADMIN PANEL v2 — Full CMS + Registration + Submissions Manager
+   Persistent storage · Dashboard · CSV Export · Navy & Gold brand UI
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const STORAGE_KEYS = {
+  config: "jem-cms-config-v2",
+  registrations: "jem-registrations-v2",
+  submissions: "jem-submissions-v2",
+};
+
+/* ─── PALETTE ─── */
+const C = {
+  bgDark: "#0D1520", sidebar: "#111C2B", sidebarHover: "#182740",
+  primary: "#1C2D4F", primaryLight: "#2A4A7F",
+  accent: "#C8963E", accentHover: "#B5842F", accentMuted: "rgba(200,150,62,0.12)",
+  text: "#E8E4DC", textDim: "#8B9BB5", textDark: "#1A1A1A",
+  white: "#FFFFFF", bg: "#F7F4EF", cream: "#FAF7F2",
+  border: "#1E2E44", borderLight: "#E2DDD5",
+  success: "#34A853", danger: "#EA4335", warn: "#FBBC04", info: "#2E86AB",
+  card: "#FFFFFF", cardBorder: "#E5E1DA",
+  copper: "#C45B28", teal: "#2E86AB", green: "#4A7C59",
+};
+
+/* ─── DEFAULTS ─── */
+const DEFAULTS = {
+  site: {
+    name: "Jinja Explorer Marathon", tagline: "Run the Royal Gateway. Explore the Adventure City.",
+    story: "A destination marathon hosted in Jinja—gateway of Busoga and Uganda's adventure city—combining world-class race operations with tourism and culture.",
+    date: "November 2026", dateShort: "Nov 2026", location: "Jinja City, Uganda",
+    email: "info@jinjaexplorermarathon.com", phone: "+256 700 000 000", whatsapp: "+256700000000",
+  },
+  fees: [
+    { category: "5K Fun Run", early: "UGX 30,000", regular: "UGX 50,000", intl: "$15" },
+    { category: "10K", early: "UGX 60,000", regular: "UGX 80,000", intl: "$25" },
+    { category: "Half Marathon 21K", early: "UGX 100,000", regular: "UGX 130,000", intl: "$40" },
+    { category: "Full Marathon 42K", early: "UGX 150,000", regular: "UGX 200,000", intl: "$60" },
+  ],
+  startTimes: [
+    { event: "Full Marathon (42K)", time: "06:00 AM", assembly: "05:15 AM" },
+    { event: "Half Marathon (21K)", time: "06:30 AM", assembly: "05:45 AM" },
+    { event: "10K", time: "07:00 AM", assembly: "06:30 AM" },
+    { event: "5K Fun Run", time: "08:00 AM", assembly: "07:30 AM" },
+  ],
+  pillars: [
+    { icon: "◈", title: "Belonging", desc: "A race for every runner—from first-timers to elites. Twegaite: Come Together.", color: "#C8963E" },
+    { icon: "◆", title: "Pride", desc: "Celebrating Busoga heritage, the Kyabazinga's legacy, and Uganda's running culture.", color: "#C45B28" },
+    { icon: "▣", title: "Legacy", desc: "Building a world-class annual race that drives lasting value for Jinja and Busoga.", color: "#1C2D4F" },
+    { icon: "◎", title: "Adventure", desc: "Jinja is Uganda's adventure capital—rafting, bungee, wildlife, and the mighty Nile.", color: "#2E86AB" },
+    { icon: "✦", title: "Stewardship", desc: "Eco-conscious operations, community reinvestment, and responsible tourism.", color: "#4A7C59" },
+  ],
+  instruments: [
+    { id: "embaire", name: "Embaire", tag: "Protocol", desc: "The royal xylophone of Busoga — a signature cultural motif.", best: "Opening ceremony, start line fanfare", emoji: "🎶" },
+    { id: "bigwala", name: "Bigwala", tag: "Protocol", desc: "Sacred gourd trumpets for royal coronations.", best: "Royal protocols, VIP arrivals", emoji: "📯" },
+    { id: "drums", name: "Engalabi Drums", tag: "Hype", desc: "Powerful long drums that drive energy and unity.", best: "Km gate hype zones, finish line energy", emoji: "🥁" },
+    { id: "shakers", name: "Ensaasi Shakers", tag: "Hype", desc: "Gourd shakers for rhythmic texture.", best: "Crowd zones, cheer points", emoji: "🎵" },
+    { id: "flute", name: "Endere Flute", tag: "Chill", desc: "Soft bamboo flute for meditative melodies.", best: "Cool-down zones, post-race relaxation", emoji: "🎼" },
+    { id: "lyre", name: "Endongo Lyre", tag: "Story", desc: "Stringed bowl lyre for oral histories.", best: "Cultural expo, storytelling sessions", emoji: "🎻" },
+  ],
+  sponsorTiers: [
+    { tier: "Title Partner", price: "Custom", perks: ["Full naming rights", "Start/finish branding", "All media & digital", "VIP hospitality (20 pax)", "Expo headline booth", "Bib & medal logo"] },
+    { tier: "Gold Sponsor", price: "From $10,000", perks: ["Km gate branding (2 gates)", "Expo premium booth", "Bib logo placement", "Digital & social media", "VIP passes (10 pax)"] },
+    { tier: "Silver Sponsor", price: "From $5,000", perks: ["Expo standard booth", "Digital media mentions", "Hydration station branding", "Event passes (5 pax)", "Website logo"] },
+    { tier: "Community Partner", price: "In-kind / $1,000+", perks: ["Logo on website", "Social media mentions", "Tourism village presence", "Event passes (2 pax)"] },
+  ],
+  itineraries: [
+    { title: "Runner Weekend", emoji: "🏃", color: "#C8963E", highlights: ["Expo & bib collection Friday", "Race day Saturday", "Recovery brunch Sunday"] },
+    { title: "Family Weekend", emoji: "👨‍👩‍👧‍👦", color: "#4A7C59", highlights: ["Kids' fun run Saturday", "Cultural showcase & food market", "Nile boat trip Sunday"] },
+    { title: "Adventure Weekend", emoji: "🌊", color: "#2E86AB", highlights: ["White-water rafting Friday", "Race day Saturday", "Bungee & quad biking Sunday"] },
+  ],
+  faqs: [
+    { q: "When and where is the race?", a: "November 2026 in Jinja City, Uganda — the adventure capital at the source of the Nile." },
+    { q: "What distances are available?", a: "5K Fun Run, 10K, Half Marathon (21K), and Full Marathon (42K)." },
+    { q: "How do I register?", a: "Click Register on the website. Pay via Mobile Money, bank transfer, or international card." },
+    { q: "Can I get a refund or transfer?", a: "Non-refundable. Transferable up to 14 days before race day with a small fee." },
+    { q: "Minimum age?", a: "5K: 10+, 10K: 14+, 21K: 16+, 42K: 18+. Under 18s need guardian consent." },
+    { q: "What's included?", a: "Bib, timing chip, finisher medal, t-shirt, hydration, medical support, refreshments, digital certificate." },
+  ],
+  courseMarkers: [
+    { km: "KM 0", name: "Start — Main Street, Jinja", desc: "Ceremonial Embaire fanfare and Bigwala trumpets." },
+    { km: "KM 8", name: "Nile Bridge Crossing", desc: "Panoramic views of Bujagali Falls." },
+    { km: "KM 15", name: "Busoga Cultural Gate", desc: "Bigwala trumpet zone and Engalabi drums." },
+    { km: "KM 21", name: "Half Marathon Finish", desc: "Lakeside promenade medal ceremony." },
+    { km: "KM 30", name: "Adventure Corridor", desc: "Rafting launch points and riverside trails." },
+    { km: "KM 42", name: "Finish — Jinja Sports Ground", desc: "Full celebration of Twegaite." },
+  ],
+  aidStations: [
+    { name: "Station 1", location: "KM 5", water: "✓", electrolytes: "—", medical: "First Aid" },
+    { name: "Station 2", location: "KM 10", water: "✓", electrolytes: "✓", medical: "First Aid" },
+    { name: "Station 3", location: "KM 15", water: "✓", electrolytes: "✓", medical: "Paramedic" },
+    { name: "Station 4", location: "KM 20", water: "✓", electrolytes: "✓", medical: "First Aid" },
+    { name: "Station 5", location: "KM 25", water: "✓", electrolytes: "✓", medical: "Paramedic" },
+    { name: "Station 6", location: "KM 30", water: "✓", electrolytes: "✓", medical: "First Aid" },
+    { name: "Station 7", location: "KM 35", water: "✓", electrolytes: "✓", medical: "Paramedic" },
+    { name: "Station 8", location: "KM 40", water: "✓", electrolytes: "✓", medical: "First Aid" },
+  ],
+  accommodation: [
+    { name: "Jinja Nile Resort", type: "Luxury", price: "$120–200/night", location: "Nile bank", phone: "+256 700 000 001", desc: "Premium riverfront resort." },
+    { name: "Explorers River Camp", type: "Mid-range", price: "$50–90/night", location: "Bujagali", phone: "+256 700 000 002", desc: "Adventure-friendly camp." },
+    { name: "The Pearl of Jinja", type: "Mid-range", price: "$40–70/night", location: "Town centre", phone: "+256 700 000 003", desc: "Walking distance to expo." },
+    { name: "Nile Backpackers", type: "Budget", price: "$15–30/night", location: "Bujagali Falls", phone: "+256 700 000 004", desc: "Social hostel." },
+    { name: "Haven Lodge Jinja", type: "Boutique", price: "$80–140/night", location: "Lakeside", phone: "+256 700 000 005", desc: "Eco-boutique lodge." },
+  ],
+  raceWeekSchedule: [
+    { day: "Thursday", events: ["Expo opens 9 AM – 6 PM", "Bib collection begins", "Welcome talk", "Tourism Village opens"] },
+    { day: "Friday", events: ["Expo 9 AM – 6 PM", "Shakeout run 7 AM", "Cultural showcase", "Pasta party 6 PM"] },
+    { day: "Saturday — Race Day", events: ["Assembly 5:15 AM", "42K: 6:00 AM", "21K: 6:30 AM", "10K: 7:00 AM", "5K: 8:00 AM", "Awards 12:00 PM"] },
+    { day: "Sunday", events: ["Recovery yoga 7 AM", "Nile cruise", "Adventure activities", "Farewell brunch 11 AM"] },
+  ],
+  seo: {
+    "/": { title: "Jinja Explorer Marathon — Run the Royal Gateway", desc: "A destination marathon in Jinja, Uganda." },
+    "/about": { title: "About — JEM", desc: "The story behind the marathon." },
+    "/register": { title: "Register — JEM", desc: "Entry fees, start times, registration." },
+    "/course": { title: "Course & Route — JEM", desc: "Certified race course through Jinja." },
+    "/race-week": { title: "Race Week & Expo — JEM", desc: "Expo details, bib collection, schedule." },
+    "/explore-jinja": { title: "Explore Jinja — Tourism", desc: "Plan your Explorer Weekend." },
+    "/culture": { title: "Busoga Soundboard — JEM", desc: "Instruments and sounds of Busoga." },
+    "/results": { title: "Results — JEM", desc: "Race results and winners." },
+    "/sponsors": { title: "Sponsor — JEM", desc: "Partnership packages." },
+    "/media": { title: "Media Centre — JEM", desc: "Press kit and resources." },
+    "/contact": { title: "Contact — JEM", desc: "Get in touch." },
+  },
+};
+
+const SAMPLE_REGISTRATIONS = [
+  { id: "JEM-A1B2C", firstName: "Sarah", lastName: "Namukasa", email: "sarah@example.com", phone: "+256 701 234 567", category: "Full Marathon 42K", tshirt: "M", gender: "Female", nationality: "Uganda", status: "Paid", date: "2026-02-15T10:30:00", payment: "MTN MoMo" },
+  { id: "JEM-D3E4F", firstName: "James", lastName: "Okello", email: "james.o@example.com", phone: "+256 772 345 678", category: "Half Marathon 21K", tshirt: "L", gender: "Male", nationality: "Uganda", status: "Paid", date: "2026-02-16T14:20:00", payment: "Airtel Money" },
+  { id: "JEM-G5H6I", firstName: "Emma", lastName: "Van der Berg", email: "emma.vdb@example.com", phone: "+31 612 345 678", category: "Full Marathon 42K", tshirt: "S", gender: "Female", nationality: "Netherlands", status: "Pending", date: "2026-02-18T09:00:00", payment: "Card" },
+  { id: "JEM-J7K8L", firstName: "David", lastName: "Kiplangat", email: "david.k@example.com", phone: "+254 712 345 678", category: "Full Marathon 42K", tshirt: "M", gender: "Male", nationality: "Kenya", status: "Paid", date: "2026-02-18T11:15:00", payment: "Card" },
+  { id: "JEM-M9N0P", firstName: "Grace", lastName: "Auma", email: "grace.a@example.com", phone: "+256 780 456 789", category: "5K Fun Run", tshirt: "S", gender: "Female", nationality: "Uganda", status: "Paid", date: "2026-02-19T08:45:00", payment: "MTN MoMo" },
+  { id: "JEM-Q1R2S", firstName: "Michael", lastName: "Johnson", email: "mj.runner@example.com", phone: "+1 555 234 5678", category: "Half Marathon 21K", tshirt: "XL", gender: "Male", nationality: "USA", status: "Failed", date: "2026-02-19T16:30:00", payment: "Card" },
+];
+
+const SAMPLE_SUBMISSIONS = [
+  { type: "sponsor", name: "MTN Uganda", org: "MTN", email: "sponsor@mtn.co.ug", phone: "+256 800 100 100", budget: "Gold Sponsor", message: "Interested in Gold tier for our brand activation.", date: "2026-02-14T10:00:00", status: "New" },
+  { type: "contact", name: "Rose Nabwire", email: "rose@media.co.ug", subject: "Media & press", message: "We'd like to cover the marathon for NTV Uganda.", date: "2026-02-17T13:00:00", status: "Replied" },
+  { type: "sponsor", name: "Uganda Breweries", org: "UBL", email: "events@ubl.co.ug", phone: "+256 700 222 333", budget: "Silver Sponsor", message: "Looking at hydration station branding.", date: "2026-02-18T09:30:00", status: "New" },
+  { type: "contact", name: "Patrick Otieno", email: "patrick@gmail.com", subject: "Registration query", message: "Can I register a team of 10 runners? Any group discount?", date: "2026-02-19T07:15:00", status: "New" },
+  { type: "pledge", name: "Community", email: "info@jinjayouth.org", pledge: "volunteer", date: "2026-02-19T11:00:00", status: "New" },
+];
+
+/* ─── NAV SECTIONS ─── */
+const SECTIONS = [
+  { id: "dashboard", label: "Dashboard", icon: "📊", desc: "Overview & stats", group: "overview" },
+  { id: "registrations", label: "Registrations", icon: "🏃", desc: "Runner entries", group: "operations" },
+  { id: "submissions", label: "Submissions", icon: "📬", desc: "Forms & inquiries", group: "operations" },
+  { id: "site", label: "Site Info", icon: "⚙", desc: "Name, contact, dates", group: "content" },
+  { id: "fees", label: "Race Fees", icon: "💰", desc: "Entry pricing", group: "content" },
+  { id: "startTimes", label: "Start Times", icon: "⏱", desc: "Gun & assembly", group: "content" },
+  { id: "pillars", label: "Pillars", icon: "◆", desc: "Brand values", group: "content" },
+  { id: "instruments", label: "Instruments", icon: "🎵", desc: "Busoga Soundboard", group: "content" },
+  { id: "sponsorTiers", label: "Sponsor Tiers", icon: "🤝", desc: "Packages", group: "content" },
+  { id: "itineraries", label: "Itineraries", icon: "🗺", desc: "Tourism plans", group: "content" },
+  { id: "accommodation", label: "Accommodation", icon: "🏨", desc: "Hotels & lodges", group: "content" },
+  { id: "faqs", label: "FAQs", icon: "❓", desc: "Questions", group: "content" },
+  { id: "courseMarkers", label: "Course Markers", icon: "📍", desc: "Route landmarks", group: "content" },
+  { id: "aidStations", label: "Aid Stations", icon: "🏥", desc: "Medical & hydration", group: "content" },
+  { id: "raceWeekSchedule", label: "Race Week", icon: "📅", desc: "Schedule", group: "content" },
+  { id: "seo", label: "SEO Meta", icon: "🔍", desc: "Titles & descriptions", group: "content" },
+];
+
+/* ═══════════════════════════════════════════════
+   STORAGE
+   ═══════════════════════════════════════════════ */
+async function storageGet(key) {
+  try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; }
+  catch { return null; }
+}
+async function storageSet(key, val) {
+  try { await window.storage.set(key, JSON.stringify(val)); return true; }
+  catch { return false; }
+}
+
+/* ═══════════════════════════════════════════════
+   SHARED UI ATOMS
+   ═══════════════════════════════════════════════ */
+const font = "'Outfit',sans-serif";
+const s = (obj) => obj; // identity for readability
+
+function Input({ label, value, onChange, type = "text", placeholder, mono, rows, options, disabled, style: st }) {
+  const isArea = type === "textarea" || rows;
+  const base = {
+    width: "100%", padding: isArea ? "10px 14px" : "9px 14px",
+    borderRadius: 8, border: `1px solid ${C.cardBorder}`,
+    fontSize: 14, fontFamily: mono ? "monospace" : font,
+    color: C.textDark, background: disabled ? "#f5f5f3" : C.white, outline: "none",
+    boxSizing: "border-box", transition: "border-color 0.2s",
+    resize: isArea ? "vertical" : "none", ...st,
+  };
+  return (
+    <div style={{ marginBottom: 14 }}>
+      {label && <label style={{ display: "block", marginBottom: 5, fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</label>}
+      {isArea ? <textarea rows={rows || 3} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} disabled={disabled} />
+        : type === "color" ? (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="color" value={value} onChange={e => onChange(e.target.value)} style={{ width: 40, height: 36, border: "none", borderRadius: 6, cursor: "pointer", padding: 0 }} />
+            <input type="text" value={value} onChange={e => onChange(e.target.value)} style={{ ...base, flex: 1, fontFamily: "monospace" }} />
+          </div>
+        ) : type === "select" ? (
+          <select value={value} onChange={e => onChange(e.target.value)} style={base} disabled={disabled}>
+            {(options || (placeholder || "").split(",")).map(o => {
+              const v = typeof o === "object" ? o.value : o.trim();
+              const l = typeof o === "object" ? o.label : o.trim();
+              return <option key={v} value={v}>{l}</option>;
+            })}
+          </select>
+        ) : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} disabled={disabled} />}
+    </div>
+  );
+}
+
+function Badge({ text, color = C.accent, style: st }) {
+  return <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, background: `${color}18`, color, ...st }}>{text}</span>;
+}
+
+function StatusBadge({ status }) {
+  const map = { Paid: C.success, Pending: C.warn, Failed: C.danger, New: C.info, Replied: C.success, Archived: "#999" };
+  return <Badge text={status} color={map[status] || C.accent} />;
+}
+
+function IconBtn({ icon, onClick, danger, title, small, style: st }) {
+  return (
+    <button title={title} onClick={onClick} style={{
+      background: danger ? "#EA433515" : "transparent", border: `1px solid ${danger ? "#EA433530" : C.cardBorder}`,
+      color: danger ? C.danger : "#6B7280", borderRadius: 6, cursor: "pointer",
+      width: small ? 28 : 32, height: small ? 28 : 32,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: small ? 13 : 15, transition: "all 0.2s", flexShrink: 0, ...st,
+    }}>{icon}</button>
+  );
+}
+
+function Card({ children, title, count, onAdd, addLabel, actions, style: st }) {
+  return (
+    <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.cardBorder}`, overflow: "hidden", ...st }}>
+      {title && <div style={{ padding: "16px 22px", borderBottom: `1px solid ${C.cardBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: C.textDark, margin: 0 }}>{title}</h3>
+          {count != null && <Badge text={`${count} items`} />}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {actions}
+          {onAdd && <button onClick={onAdd} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, color: C.accent, padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ {addLabel || "Add"}</button>}
+        </div>
+      </div>}
+      <div style={{ padding: title ? "18px 22px" : 0 }}>{children}</div>
+    </div>
+  );
+}
+
+function ItemRow({ children, index, onDelete, onMoveUp, onMoveDown, label, collapsed, onToggle }) {
+  return (
+    <div style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 10, marginBottom: 10, background: "#FAFAF8", overflow: "hidden" }}>
+      <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, borderBottom: collapsed ? "none" : `1px solid ${C.cardBorder}`, cursor: onToggle ? "pointer" : "default", userSelect: "none" }} onClick={onToggle}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", width: 20, textAlign: "center" }}>#{index + 1}</span>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.textDark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <div style={{ display: "flex", gap: 3 }} onClick={e => e.stopPropagation()}>
+          {onMoveUp && <IconBtn icon="↑" onClick={onMoveUp} small title="Move up" />}
+          {onMoveDown && <IconBtn icon="↓" onClick={onMoveDown} small title="Move down" />}
+          {onDelete && <IconBtn icon="✕" onClick={onDelete} danger small title="Delete" />}
+        </div>
+        {onToggle && <span style={{ fontSize: 12, color: "#9CA3AF", transform: collapsed ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 0.2s" }}>▾</span>}
+      </div>
+      {!collapsed && <div style={{ padding: "12px 14px" }}>{children}</div>}
+    </div>
+  );
+}
+
+function StatCard({ icon, value, label, color = C.accent, sub }) {
+  return (
+    <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.cardBorder}`, padding: "20px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ width: 44, height: 44, borderRadius: 10, background: `${color}14`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: C.textDark, lineHeight: 1.1 }}>{value}</div>
+        <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, marginTop: 2 }}>{label}</div>
+        {sub && <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 2 }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Toast({ message, type, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
+  const bg = type === "success" ? C.success : type === "error" ? C.danger : C.warn;
+  return <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 999, background: bg, color: C.white, padding: "12px 22px", borderRadius: 10, fontSize: 14, fontWeight: 600, boxShadow: "0 8px 32px rgba(0,0,0,0.25)", display: "flex", alignItems: "center", gap: 8, animation: "fadeInUp 0.3s ease" }}>
+    <span>{type === "success" ? "✓" : type === "error" ? "✕" : "⚠"}</span>{message}
+  </div>;
+}
+
+function EmptyState({ icon = "📭", title, desc }) {
+  return <div style={{ textAlign: "center", padding: 40, color: "#9CA3AF" }}><div style={{ fontSize: 32, marginBottom: 8 }}>{icon}</div><div style={{ fontWeight: 600, marginBottom: 4 }}>{title}</div>{desc && <div style={{ fontSize: 13 }}>{desc}</div>}</div>;
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION EDITORS
+   ═══════════════════════════════════════════════ */
+
+/* Generic Array Editor */
+function ArrayEditor({ data, update, fields, title, addLabel, defaultItem, labelField }) {
+  const [collapsed, setCollapsed] = useState({});
+  const toggle = (i) => setCollapsed(p => ({ ...p, [i]: !p[i] }));
+  const setField = (i, key, val) => { const n = [...data]; n[i] = { ...n[i], [key]: val }; update(n); };
+  const remove = (i) => { if (confirm("Delete this item?")) update(data.filter((_, j) => j !== i)); };
+  const add = () => { update([...data, { ...defaultItem }]); setCollapsed(p => ({ ...p, [data.length]: false })); };
+  const move = (i, dir) => { const n = [...data]; const j = i + dir; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; update(n); };
+  return (
+    <Card title={title} count={data.length} onAdd={add} addLabel={addLabel}>
+      {data.map((item, i) => (
+        <ItemRow key={i} index={i} label={item[labelField] || `Item ${i + 1}`} onDelete={() => remove(i)}
+          onMoveUp={i > 0 ? () => move(i, -1) : null} onMoveDown={i < data.length - 1 ? () => move(i, 1) : null}
+          collapsed={collapsed[i] == null ? i < data.length - 1 : collapsed[i]} onToggle={() => toggle(i)}>
+          <div style={{ display: "grid", gridTemplateColumns: fields.length > 3 ? "1fr 1fr" : "1fr", gap: "0 14px" }}>
+            {fields.map(f => <Input key={f.key} label={f.label} value={item[f.key] || ""} onChange={v => setField(i, f.key, v)} type={f.type || "text"} placeholder={f.placeholder} options={f.options} mono={f.mono} rows={f.rows} />)}
+          </div>
+        </ItemRow>
+      ))}
+      {data.length === 0 && <EmptyState title="No items yet" desc="Click + to add one." />}
+    </Card>
+  );
+}
+
+/* Nested perks editor for sponsor tiers */
+function SponsorTiersEditor({ data, update }) {
+  const [collapsed, setCollapsed] = useState({});
+  const toggle = i => setCollapsed(p => ({ ...p, [i]: !p[i] }));
+  const setField = (i, k, v) => { const n = [...data]; n[i] = { ...n[i], [k]: v }; update(n); };
+  const setPerk = (i, j, v) => { const n = [...data]; const perks = [...n[i].perks]; perks[j] = v; n[i] = { ...n[i], perks }; update(n); };
+  const addPerk = i => { const n = [...data]; n[i] = { ...n[i], perks: [...n[i].perks, "New perk"] }; update(n); };
+  const removePerk = (i, j) => { const n = [...data]; n[i] = { ...n[i], perks: n[i].perks.filter((_, k) => k !== j) }; update(n); };
+  return (
+    <Card title="Sponsor Tiers" count={data.length} onAdd={() => update([...data, { tier: "New Tier", price: "$0", perks: ["Perk 1"] }])} addLabel="Add Tier">
+      {data.map((item, i) => (
+        <ItemRow key={i} index={i} label={item.tier} onDelete={() => update(data.filter((_, j) => j !== i))} collapsed={collapsed[i] == null ? true : collapsed[i]} onToggle={() => toggle(i)}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
+            <Input label="Tier Name" value={item.tier} onChange={v => setField(i, "tier", v)} />
+            <Input label="Price" value={item.price} onChange={v => setField(i, "price", v)} />
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" }}>Perks</label>
+              <button onClick={() => addPerk(i)} style={{ background: "none", border: "none", color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Add perk</button>
+            </div>
+            {item.perks.map((pk, j) => (
+              <div key={j} style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                <input value={pk} onChange={e => setPerk(i, j, e.target.value)} style={{ flex: 1, padding: "7px 12px", borderRadius: 6, border: `1px solid ${C.cardBorder}`, fontSize: 13, outline: "none", color: C.textDark, fontFamily: font }} />
+                <IconBtn icon="✕" onClick={() => removePerk(i, j)} danger small />
+              </div>
+            ))}
+          </div>
+        </ItemRow>
+      ))}
+    </Card>
+  );
+}
+
+/* Nested events for race week + itinerary highlights — generic */
+function NestedListEditor({ data, update, title, dayField, nestedField, nestedLabel, addLabel, defaultItem }) {
+  const [collapsed, setCollapsed] = useState({});
+  const toggle = i => setCollapsed(p => ({ ...p, [i]: !p[i] }));
+  return (
+    <Card title={title} count={data.length} onAdd={() => update([...data, { ...defaultItem }])} addLabel={addLabel}>
+      {data.map((item, i) => (
+        <ItemRow key={i} index={i} label={`${item.emoji || ""} ${item[dayField]}`.trim()} onDelete={() => update(data.filter((_, j) => j !== i))} collapsed={collapsed[i] == null ? true : collapsed[i]} onToggle={() => toggle(i)}>
+          <div style={{ display: "grid", gridTemplateColumns: item.emoji != null ? "1fr 80px" : "1fr", gap: "0 10px" }}>
+            <Input label={dayField === "day" ? "Day Label" : "Title"} value={item[dayField]} onChange={v => { const n = [...data]; n[i] = { ...n[i], [dayField]: v }; update(n); }} />
+            {item.emoji != null && <Input label="Emoji" value={item.emoji} onChange={v => { const n = [...data]; n[i] = { ...n[i], emoji: v }; update(n); }} />}
+          </div>
+          {item.color != null && <Input label="Color" value={item.color} onChange={v => { const n = [...data]; n[i] = { ...n[i], color: v }; update(n); }} type="color" />}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, marginTop: 4 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" }}>{nestedLabel}</label>
+            <button onClick={() => { const n = [...data]; n[i] = { ...n[i], [nestedField]: [...n[i][nestedField], "New item"] }; update(n); }} style={{ background: "none", border: "none", color: C.accent, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Add</button>
+          </div>
+          {item[nestedField].map((ev, j) => (
+            <div key={j} style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+              <input value={ev} onChange={e => { const n = [...data]; const arr = [...n[i][nestedField]]; arr[j] = e.target.value; n[i] = { ...n[i], [nestedField]: arr }; update(n); }} style={{ flex: 1, padding: "7px 12px", borderRadius: 6, border: `1px solid ${C.cardBorder}`, fontSize: 13, outline: "none", color: C.textDark, fontFamily: font }} />
+              <IconBtn icon="✕" onClick={() => { const n = [...data]; n[i] = { ...n[i], [nestedField]: n[i][nestedField].filter((_, k) => k !== j) }; update(n); }} danger small />
+            </div>
+          ))}
+        </ItemRow>
+      ))}
+    </Card>
+  );
+}
+
+function SeoEditor({ data, update }) {
+  const pages = Object.keys(data);
+  const setField = (page, key, val) => update({ ...data, [page]: { ...data[page], [key]: val } });
+  return (
+    <Card title="SEO Meta Tags" count={pages.length}>
+      {pages.map(page => (
+        <div key={page} style={{ border: `1px solid ${C.cardBorder}`, borderRadius: 10, padding: 14, marginBottom: 10, background: "#FAFAF8" }}>
+          <Badge text={page} color={C.primaryLight} style={{ marginBottom: 10 }} />
+          <Input label="Meta Title" value={data[page].title} onChange={v => setField(page, "title", v)} />
+          <Input label="Meta Description" value={data[page].desc} onChange={v => setField(page, "desc", v)} type="textarea" rows={2} />
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function SiteEditor({ data, update }) {
+  const s = k => v => update({ ...data, [k]: v });
+  return (
+    <Card title="Site Information">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Event Name" value={data.name} onChange={s("name")} />
+        <Input label="Location" value={data.location} onChange={s("location")} />
+        <Input label="Date (display)" value={data.date} onChange={s("date")} />
+        <Input label="Date (short)" value={data.dateShort} onChange={s("dateShort")} />
+        <Input label="Email" value={data.email} onChange={s("email")} type="email" />
+        <Input label="Phone" value={data.phone} onChange={s("phone")} />
+        <Input label="WhatsApp (no spaces)" value={data.whatsapp} onChange={s("whatsapp")} mono />
+      </div>
+      <Input label="Tagline" value={data.tagline} onChange={s("tagline")} />
+      <Input label="One-sentence Story" value={data.story} onChange={s("story")} type="textarea" rows={2} />
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   DASHBOARD
+   ═══════════════════════════════════════════════ */
+function Dashboard({ registrations, submissions, config }) {
+  const paid = registrations.filter(r => r.status === "Paid").length;
+  const pending = registrations.filter(r => r.status === "Pending").length;
+  const failed = registrations.filter(r => r.status === "Failed").length;
+  const newSubs = submissions.filter(s => s.status === "New").length;
+  const sponsors = submissions.filter(s => s.type === "sponsor").length;
+  const catCounts = {};
+  registrations.forEach(r => { catCounts[r.category] = (catCounts[r.category] || 0) + 1; });
+  const recent = [...registrations].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14, marginBottom: 24 }}>
+        <StatCard icon="🏃" value={registrations.length} label="Total Registrations" color={C.accent} sub={`${paid} paid`} />
+        <StatCard icon="✓" value={paid} label="Paid" color={C.success} />
+        <StatCard icon="⏳" value={pending} label="Pending Payment" color={C.warn} />
+        <StatCard icon="✕" value={failed} label="Failed" color={C.danger} />
+        <StatCard icon="📬" value={newSubs} label="New Submissions" color={C.info} />
+        <StatCard icon="🤝" value={sponsors} label="Sponsor Inquiries" color={C.accent} />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+        <Card title="Recent Registrations">
+          {recent.length === 0 ? <EmptyState title="No registrations yet" /> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: `2px solid ${C.cardBorder}` }}>
+                  {["ID", "Name", "Category", "Status", "Date"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" }}>{h}</th>)}
+                </tr></thead>
+                <tbody>{recent.map(r => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+                    <td style={{ padding: "8px 10px", fontFamily: "monospace", fontSize: 11 }}>{r.id}</td>
+                    <td style={{ padding: "8px 10px", fontWeight: 600 }}>{r.firstName} {r.lastName}</td>
+                    <td style={{ padding: "8px 10px" }}>{r.category}</td>
+                    <td style={{ padding: "8px 10px" }}><StatusBadge status={r.status} /></td>
+                    <td style={{ padding: "8px 10px", color: "#9CA3AF", fontSize: 12 }}>{new Date(r.date).toLocaleDateString()}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+        <Card title="By Category">
+          {Object.keys(catCounts).length === 0 ? <EmptyState title="No data" icon="📈" /> : (
+            <div>
+              {Object.entries(catCounts).sort((a, b) => b[1] - a[1]).map(([cat, count]) => {
+                const pct = Math.round((count / registrations.length) * 100);
+                return (
+                  <div key={cat} style={{ marginBottom: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600, color: C.textDark }}>{cat}</span>
+                      <span style={{ color: "#9CA3AF" }}>{count} ({pct}%)</span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 4, background: `${C.accent}18` }}>
+                      <div style={{ height: "100%", borderRadius: 4, background: `linear-gradient(90deg, ${C.accent}, ${C.accentHover})`, width: `${pct}%`, transition: "width 0.5s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   REGISTRATIONS MANAGER
+   ═══════════════════════════════════════════════ */
+function RegistrationsManager({ registrations, setRegistrations, showToast }) {
+  const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [selected, setSelected] = useState(null);
+
+  const categories = ["All", ...new Set(registrations.map(r => r.category))];
+  const statuses = ["All", "Paid", "Pending", "Failed"];
+
+  const filtered = registrations.filter(r => {
+    const matchSearch = !search || `${r.firstName} ${r.lastName} ${r.email} ${r.id} ${r.phone}`.toLowerCase().includes(search.toLowerCase());
+    const matchCat = filterCat === "All" || r.category === filterCat;
+    const matchStatus = filterStatus === "All" || r.status === filterStatus;
+    return matchSearch && matchCat && matchStatus;
+  });
+
+  const exportCSV = () => {
+    const headers = ["ID", "First Name", "Last Name", "Email", "Phone", "Category", "T-Shirt", "Gender", "Nationality", "Status", "Payment", "Date"];
+    const rows = filtered.map(r => [r.id, r.firstName, r.lastName, r.email, r.phone, r.category, r.tshirt, r.gender, r.nationality, r.status, r.payment, r.date]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `jem-registrations-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+    showToast(`Exported ${filtered.length} registrations`);
+  };
+
+  const updateStatus = (id, status) => {
+    setRegistrations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    showToast(`Status updated to ${status}`);
+  };
+
+  if (selected) {
+    const r = selected;
+    return (
+      <Card title={`${r.firstName} ${r.lastName}`} actions={<button onClick={() => setSelected(null)} style={{ background: "none", border: `1px solid ${C.cardBorder}`, padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>← Back</button>}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+          <Input label="Registration ID" value={r.id} disabled onChange={() => { }} />
+          <Input label="Status" value={r.status} type="select" options={["Paid", "Pending", "Failed"]} onChange={v => { updateStatus(r.id, v); setSelected({ ...r, status: v }); }} />
+          <Input label="First Name" value={r.firstName} disabled onChange={() => { }} />
+          <Input label="Last Name" value={r.lastName} disabled onChange={() => { }} />
+          <Input label="Email" value={r.email} disabled onChange={() => { }} />
+          <Input label="Phone" value={r.phone} disabled onChange={() => { }} />
+          <Input label="Category" value={r.category} disabled onChange={() => { }} />
+          <Input label="T-Shirt Size" value={r.tshirt} disabled onChange={() => { }} />
+          <Input label="Gender" value={r.gender || "—"} disabled onChange={() => { }} />
+          <Input label="Nationality" value={r.nationality || "—"} disabled onChange={() => { }} />
+          <Input label="Payment Method" value={r.payment || "—"} disabled onChange={() => { }} />
+          <Input label="Registration Date" value={new Date(r.date).toLocaleString()} disabled onChange={() => { }} />
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16, alignItems: "center" }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, email, ID, phone..." style={{ flex: 1, minWidth: 200, padding: "9px 14px", borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 13, outline: "none", fontFamily: font }} />
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ padding: "9px 14px", borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 13, fontFamily: font, color: C.textDark }}>
+          {categories.map(c => <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: "9px 14px", borderRadius: 8, border: `1px solid ${C.cardBorder}`, fontSize: 13, fontFamily: font, color: C.textDark }}>
+          {statuses.map(s => <option key={s} value={s}>{s === "All" ? "All Statuses" : s}</option>)}
+        </select>
+        <button onClick={exportCSV} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, color: C.accent, padding: "9px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>📥 Export CSV</button>
+      </div>
+
+      {/* Summary */}
+      <div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 12 }}>Showing {filtered.length} of {registrations.length} registrations</div>
+
+      {/* Table */}
+      <Card>
+        {filtered.length === 0 ? <EmptyState title="No registrations found" desc="Adjust your filters or search." icon="🔍" /> : (
+          <div style={{ overflowX: "auto", margin: "-18px -22px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead><tr style={{ background: C.primary }}>
+                {["ID", "Name", "Email", "Category", "Size", "Status", "Payment", "Date", ""].map(h => (
+                  <th key={h} style={{ padding: "12px 12px", textAlign: "left", color: C.white, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.id} style={{ borderBottom: `1px solid ${C.cardBorder}`, background: i % 2 === 0 ? C.white : "#FAFAF8", cursor: "pointer" }} onClick={() => setSelected(r)}>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 11 }}>{r.id}</td>
+                    <td style={{ padding: "10px 12px", fontWeight: 600, whiteSpace: "nowrap" }}>{r.firstName} {r.lastName}</td>
+                    <td style={{ padding: "10px 12px", color: "#6B7280", fontSize: 12 }}>{r.email}</td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>{r.category}</td>
+                    <td style={{ padding: "10px 12px" }}>{r.tshirt}</td>
+                    <td style={{ padding: "10px 12px" }}><StatusBadge status={r.status} /></td>
+                    <td style={{ padding: "10px 12px", fontSize: 12, color: "#6B7280" }}>{r.payment}</td>
+                    <td style={{ padding: "10px 12px", fontSize: 12, color: "#9CA3AF", whiteSpace: "nowrap" }}>{new Date(r.date).toLocaleDateString()}</td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <select value={r.status} onClick={e => e.stopPropagation()} onChange={e => updateStatus(r.id, e.target.value)} style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.cardBorder}`, fontSize: 11, fontFamily: font, cursor: "pointer" }}>
+                        <option value="Paid">Paid</option><option value="Pending">Pending</option><option value="Failed">Failed</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   SUBMISSIONS MANAGER
+   ═══════════════════════════════════════════════ */
+function SubmissionsManager({ submissions, setSubmissions, showToast }) {
+  const [filterType, setFilterType] = useState("All");
+  const types = ["All", "sponsor", "contact", "pledge"];
+  const filtered = submissions.filter(s => filterType === "All" || s.type === filterType);
+
+  const updateStatus = (i, status) => {
+    setSubmissions(prev => prev.map((s, j) => j === i ? { ...s, status } : s));
+    showToast(`Marked as ${status}`);
+  };
+
+  const exportCSV = () => {
+    const headers = ["Type", "Name", "Email", "Org", "Subject", "Message", "Status", "Date"];
+    const rows = filtered.map(s => [s.type, s.name, s.email, s.org || "", s.subject || s.pledge || "", s.message || "", s.status, s.date]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `jem-submissions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); showToast(`Exported ${filtered.length} submissions`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6 }}>
+          {types.map(t => (
+            <button key={t} onClick={() => setFilterType(t)} style={{
+              padding: "7px 16px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              background: filterType === t ? C.primary : C.white, color: filterType === t ? C.white : "#6B7280",
+              border: `1px solid ${filterType === t ? C.primary : C.cardBorder}`,
+            }}>{t === "All" ? "All" : t.charAt(0).toUpperCase() + t.slice(1)}{t !== "All" ? ` (${submissions.filter(s => s.type === t).length})` : ""}</button>
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        <button onClick={exportCSV} style={{ background: `${C.accent}12`, border: `1px solid ${C.accent}30`, color: C.accent, padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📥 Export CSV</button>
+      </div>
+
+      {filtered.length === 0 ? <Card><EmptyState title="No submissions" desc="Submissions from forms will appear here." /></Card> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map((sub, i) => {
+            const origIdx = submissions.indexOf(sub);
+            const typeColors = { sponsor: C.accent, contact: C.info, pledge: C.green };
+            return (
+              <div key={i} style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.cardBorder}`, padding: "18px 20px", borderLeft: `4px solid ${typeColors[sub.type] || C.accent}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: C.textDark }}>{sub.name || sub.email}</span>
+                      <Badge text={sub.type} color={typeColors[sub.type]} />
+                      <StatusBadge status={sub.status} />
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9CA3AF" }}>{sub.email}{sub.org ? ` · ${sub.org}` : ""}{sub.phone ? ` · ${sub.phone}` : ""}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>{new Date(sub.date).toLocaleDateString()}</span>
+                    <select value={sub.status} onChange={e => updateStatus(origIdx, e.target.value)} style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${C.cardBorder}`, fontSize: 11, fontFamily: font }}>
+                      <option value="New">New</option><option value="Replied">Replied</option><option value="Archived">Archived</option>
+                    </select>
+                  </div>
+                </div>
+                {(sub.subject || sub.budget || sub.pledge) && <div style={{ fontSize: 12, fontWeight: 600, color: C.primaryLight, marginBottom: 4 }}>{sub.subject || sub.budget || `Pledge: ${sub.pledge}`}</div>}
+                {sub.message && <div style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.5, background: "#FAFAF8", padding: "10px 14px", borderRadius: 8, marginTop: 6 }}>{sub.message}</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN APP
+   ═══════════════════════════════════════════════ */
+function JemAdminPanel() {
+  const [config, setConfig] = useState(null);
+  const [registrations, setRegistrations] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [active, setActive] = useState("dashboard");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const [savedConfig, savedRegs, savedSubs] = await Promise.all([
+        storageGet(STORAGE_KEYS.config),
+        storageGet(STORAGE_KEYS.registrations),
+        storageGet(STORAGE_KEYS.submissions),
+      ]);
+      setConfig(savedConfig || JSON.parse(JSON.stringify(DEFAULTS)));
+      setRegistrations(savedRegs || [...SAMPLE_REGISTRATIONS]);
+      setSubmissions(savedSubs || [...SAMPLE_SUBMISSIONS]);
+      setLoading(false);
+    })();
+  }, []);
+
+  const showToastFn = useCallback((msg, type = "success") => setToast({ message: msg, type }), []);
+
+  const updateSection = useCallback(section => value => {
+    setConfig(prev => ({ ...prev, [section]: value }));
+    setDirty(true);
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const results = await Promise.all([
+      storageSet(STORAGE_KEYS.config, config),
+      storageSet(STORAGE_KEYS.registrations, registrations),
+      storageSet(STORAGE_KEYS.submissions, submissions),
+    ]);
+    setSaving(false);
+    if (results.every(Boolean)) { setDirty(false); showToastFn("All changes saved"); }
+    else showToastFn("Save failed — try again", "error");
+  };
+
+  const handleExport = () => {
+    const payload = { config, registrations, submissions, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `jem-full-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); showToastFn("Full export downloaded");
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input"); input.type = "file"; input.accept = ".json";
+    input.onchange = async (e) => {
+      try {
+        const text = await e.target.files[0].text();
+        const data = JSON.parse(text);
+        if (data.config) { setConfig(data.config); setDirty(true); }
+        if (data.registrations) setRegistrations(data.registrations);
+        if (data.submissions) setSubmissions(data.submissions);
+        showToastFn("Data imported successfully");
+      } catch { showToastFn("Invalid JSON file", "error"); }
+    };
+    input.click();
+  };
+
+  const handleReset = () => {
+    if (confirm("Reset ALL content to defaults? This cannot be undone.")) {
+      setConfig(JSON.parse(JSON.stringify(DEFAULTS)));
+      setDirty(true);
+      showToastFn("Reset to defaults — save to persist", "warn");
+    }
+  };
+
+  const filteredSections = search
+    ? SECTIONS.filter(s => `${s.label} ${s.desc}`.toLowerCase().includes(search.toLowerCase()))
+    : SECTIONS;
+
+  const groups = { overview: "Overview", operations: "Operations", content: "Content" };
+
+  if (loading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: C.bg, fontFamily: font }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", border: `3px solid ${C.cardBorder}`, borderTopColor: C.accent, animation: "spin 0.8s linear infinite", margin: "0 auto 14px" }} />
+        <p style={{ color: "#9CA3AF", fontSize: 14 }}>Loading admin panel...</p>
+      </div>
+    </div>
+  );
+
+  const renderEditor = () => {
+    if (!config) return null;
+    switch (active) {
+      case "dashboard": return <Dashboard registrations={registrations} submissions={submissions} config={config} />;
+      case "registrations": return <RegistrationsManager registrations={registrations} setRegistrations={v => { setRegistrations(v); setDirty(true); }} showToast={showToastFn} />;
+      case "submissions": return <SubmissionsManager submissions={submissions} setSubmissions={v => { setSubmissions(v); setDirty(true); }} showToast={showToastFn} />;
+      case "site": return <SiteEditor data={config.site} update={updateSection("site")} />;
+      case "fees": return <ArrayEditor data={config.fees} update={updateSection("fees")} title="Race Fees" addLabel="Add Category" labelField="category" defaultItem={{ category: "New", early: "UGX 0", regular: "UGX 0", intl: "$0" }} fields={[{ key: "category", label: "Category" }, { key: "early", label: "Early Bird" }, { key: "regular", label: "Regular" }, { key: "intl", label: "International" }]} />;
+      case "startTimes": return <ArrayEditor data={config.startTimes} update={updateSection("startTimes")} title="Start Times" addLabel="Add Event" labelField="event" defaultItem={{ event: "New", time: "00:00 AM", assembly: "00:00 AM" }} fields={[{ key: "event", label: "Event" }, { key: "time", label: "Gun Time" }, { key: "assembly", label: "Assembly" }]} />;
+      case "pillars": return <ArrayEditor data={config.pillars} update={updateSection("pillars")} title="Explorer Pillars" addLabel="Add Pillar" labelField="title" defaultItem={{ icon: "●", title: "New", desc: "Description", color: "#666" }} fields={[{ key: "icon", label: "Icon" }, { key: "title", label: "Title" }, { key: "color", label: "Color", type: "color" }, { key: "desc", label: "Description", rows: 2 }]} />;
+      case "instruments": return <ArrayEditor data={config.instruments} update={updateSection("instruments")} title="Busoga Instruments" addLabel="Add Instrument" labelField="name" defaultItem={{ id: "new", name: "New", tag: "Protocol", desc: "Description", best: "Best for...", emoji: "🎵" }} fields={[{ key: "name", label: "Name" }, { key: "emoji", label: "Emoji" }, { key: "id", label: "ID (slug)", mono: true }, { key: "tag", label: "Category", type: "select", options: ["Protocol", "Hype", "Chill", "Story"] }, { key: "desc", label: "Description", rows: 2 }, { key: "best", label: "Best Used For" }]} />;
+      case "sponsorTiers": return <SponsorTiersEditor data={config.sponsorTiers} update={updateSection("sponsorTiers")} />;
+      case "itineraries": return <NestedListEditor data={config.itineraries} update={updateSection("itineraries")} title="Tourism Itineraries" dayField="title" nestedField="highlights" nestedLabel="Highlights" addLabel="Add Itinerary" defaultItem={{ title: "New", emoji: "📌", color: "#666", highlights: ["Activity 1"] }} />;
+      case "accommodation": return <ArrayEditor data={config.accommodation} update={updateSection("accommodation")} title="Accommodation" addLabel="Add Property" labelField="name" defaultItem={{ name: "New Hotel", type: "Mid-range", price: "$0/night", location: "Jinja", phone: "+256 700 000 000", desc: "Description" }} fields={[{ key: "name", label: "Name" }, { key: "type", label: "Type", type: "select", options: ["Luxury", "Mid-range", "Budget", "Boutique", "Hostel"] }, { key: "price", label: "Price Range" }, { key: "location", label: "Location" }, { key: "phone", label: "Phone" }, { key: "desc", label: "Description", rows: 2 }]} />;
+      case "faqs": return <ArrayEditor data={config.faqs} update={updateSection("faqs")} title="FAQs" addLabel="Add FAQ" labelField="q" defaultItem={{ q: "Question?", a: "Answer." }} fields={[{ key: "q", label: "Question" }, { key: "a", label: "Answer", rows: 3 }]} />;
+      case "courseMarkers": return <ArrayEditor data={config.courseMarkers} update={updateSection("courseMarkers")} title="Course Markers" addLabel="Add Marker" labelField="name" defaultItem={{ km: "KM 0", name: "New Marker", desc: "Description" }} fields={[{ key: "km", label: "KM" }, { key: "name", label: "Name" }, { key: "desc", label: "Description", rows: 2 }]} />;
+      case "aidStations": return <ArrayEditor data={config.aidStations} update={updateSection("aidStations")} title="Aid Stations" addLabel="Add Station" labelField="name" defaultItem={{ name: "Station", location: "KM 0", water: "✓", electrolytes: "—", medical: "First Aid" }} fields={[{ key: "name", label: "Station" }, { key: "location", label: "Location" }, { key: "water", label: "Water" }, { key: "electrolytes", label: "Electrolytes" }, { key: "medical", label: "Medical" }]} />;
+      case "raceWeekSchedule": return <NestedListEditor data={config.raceWeekSchedule} update={updateSection("raceWeekSchedule")} title="Race Week Schedule" dayField="day" nestedField="events" nestedLabel="Events" addLabel="Add Day" defaultItem={{ day: "New Day", events: ["Event 1"] }} />;
+      case "seo": return <SeoEditor data={config.seo} update={updateSection("seo")} />;
+      default: return null;
+    }
+  };
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: ${font}; background: ${C.bg}; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #D1CBC0; border-radius: 3px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        input:focus, textarea:focus, select:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px ${C.accentMuted} !important; }
+        .sb-item { transition: all 0.15s; }
+        .sb-item:hover { background: ${C.sidebarHover}; }
+        @media (max-width: 860px) {
+          .adm-grid { grid-template-columns: 1fr !important; }
+          .adm-sb { display: none !important; }
+          .adm-sb.open { display: flex !important; position: fixed; inset: 0; z-index: 200; width: 280px; }
+          .sb-overlay { display: block !important; }
+          .mob-btn { display: flex !important; }
+        }
+        @media (min-width: 861px) { .sb-overlay { display: none !important; } .mob-btn { display: none !important; } }
+      `}</style>
+
+      {sidebarOpen && <div className="sb-overlay" onClick={() => setSidebarOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 199 }} />}
+
+      <div className="adm-grid" style={{ display: "grid", gridTemplateColumns: "264px 1fr", minHeight: "100vh" }}>
+        {/* ── SIDEBAR ── */}
+        <aside className={`adm-sb ${sidebarOpen ? "open" : ""}`} style={{ background: C.sidebar, display: "flex", flexDirection: "column", borderRight: `1px solid ${C.border}`, overflow: "hidden" }}>
+          <div style={{ padding: "20px 18px 14px", borderBottom: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: `linear-gradient(135deg, ${C.accent}, ${C.accentHover})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: C.bgDark }}>J</div>
+              <div><div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>JEM Admin</div><div style={{ fontSize: 10, color: C.textDim }}>Content & Operations</div></div>
+            </div>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sections..." style={{ width: "100%", padding: "7px 12px", borderRadius: 8, border: `1px solid ${C.border}`, background: "rgba(255,255,255,0.05)", color: C.text, fontSize: 12, outline: "none", fontFamily: font }} />
+          </div>
+
+          <nav style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
+            {Object.entries(groups).map(([gKey, gLabel]) => {
+              const items = filteredSections.filter(s => s.group === gKey);
+              if (items.length === 0) return null;
+              return (
+                <div key={gKey}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: 1.2, padding: "12px 10px 6px" }}>{gLabel}</div>
+                  {items.map(sec => (
+                    <button key={sec.id} className="sb-item" onClick={() => { setActive(sec.id); setSidebarOpen(false); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 10px",
+                        border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                        background: active === sec.id ? `${C.accent}18` : "transparent",
+                        borderLeft: active === sec.id ? `3px solid ${C.accent}` : "3px solid transparent",
+                      }}>
+                      <span style={{ fontSize: 14, width: 22, textAlign: "center", flexShrink: 0 }}>{sec.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: active === sec.id ? 700 : 500, color: active === sec.id ? C.accent : C.text }}>{sec.label}</div>
+                        <div style={{ fontSize: 9, color: C.textDim, marginTop: 1 }}>{sec.desc}</div>
+                      </div>
+                      {sec.id === "registrations" && registrations.length > 0 && <Badge text={registrations.length} color={C.success} style={{ marginLeft: "auto" }} />}
+                      {sec.id === "submissions" && submissions.filter(s => s.status === "New").length > 0 && <Badge text={submissions.filter(s => s.status === "New").length} color={C.danger} style={{ marginLeft: "auto" }} />}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+
+          <div style={{ padding: "10px 12px", borderTop: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 5 }}>
+            <button onClick={handleExport} style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.text, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>📥 Export All (JSON)</button>
+            <button onClick={handleImport} style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", color: C.text, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>📤 Import JSON</button>
+            <button onClick={handleReset} style={{ width: "100%", padding: "8px", borderRadius: 8, border: `1px solid ${C.danger}30`, background: "transparent", color: C.danger, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>↻ Reset Defaults</button>
+          </div>
+        </aside>
+
+        {/* ── MAIN ── */}
+        <main style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <header style={{ padding: "12px 24px", background: C.white, borderBottom: `1px solid ${C.cardBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 50, gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button className="mob-btn" onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", padding: "4px 8px", display: "none" }}>☰</button>
+              <div>
+                <h1 style={{ fontSize: 16, fontWeight: 700, color: C.textDark, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  {SECTIONS.find(s => s.id === active)?.icon} {SECTIONS.find(s => s.id === active)?.label}
+                </h1>
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{SECTIONS.find(s => s.id === active)?.desc}</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {dirty && <Badge text="Unsaved" color={C.warn} />}
+              <button onClick={handleSave} disabled={saving || !dirty} style={{
+                background: dirty ? `linear-gradient(135deg, ${C.accent}, ${C.accentHover})` : C.cardBorder,
+                color: dirty ? C.bgDark : "#9CA3AF", border: "none",
+                padding: "8px 20px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                cursor: dirty ? "pointer" : "default", opacity: saving ? 0.6 : 1,
+              }}>{saving ? "Saving..." : "💾 Save"}</button>
+            </div>
+          </header>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: "24px" }}>
+            <div style={{ maxWidth: 960, margin: "0 auto" }}>{renderEditor()}</div>
+          </div>
+        </main>
+      </div>
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    </>
+  );
+}
+
+// Mount
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<JemAdminPanel />);
+  </script>
+</body>
+</html>

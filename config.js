@@ -2,7 +2,7 @@
 // JEM SITE CONFIG — All editable content lives here
 // ═══════════════════════════════════════════════════════════
 
-const CONFIG = {
+let CONFIG = {
   site: {
     name: "Jinja Explorer Marathon",
     tagline: "Run the Royal Gateway. Explore the Adventure City.",
@@ -122,5 +122,21 @@ const CONFIG = {
     "/sponsors": { title: "Sponsor — Jinja Explorer Marathon", desc: "Partnership packages for East Africa's premier destination marathon." },
     "/media": { title: "Media Centre — Jinja Explorer Marathon", desc: "Press kit, press releases, and media resources." },
     "/contact": { title: "Contact — Jinja Explorer Marathon", desc: "Get in touch with the Jinja Explorer Marathon team." },
+    "/admin": { title: "Admin — Jinja Explorer Marathon", desc: "Admin panel for managing content and demo submissions." },
   },
 };
+
+// Allow the Admin Panel (admin.html) to override config in the browser (demo mode).
+// This keeps everything client-side for GitHub Pages.
+try {
+  const v = localStorage.getItem('jem-cms-config-v2');
+  if (v) {
+    const parsed = JSON.parse(v);
+    if (parsed && typeof parsed === 'object') {
+      // Merge top-level keys (site, fees, etc.)
+      CONFIG = { ...CONFIG, ...parsed };
+    }
+  }
+} catch {
+  // ignore
+}
